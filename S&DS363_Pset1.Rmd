@@ -134,7 +134,7 @@ ciscoreplot<-function(x, comps, namevec){
 
 
 ```{r cars}
-data <- read.csv("/Users/franklinwu/Desktop/sustainable_development_report_2023.csv")
+data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
 
 # Rename the columns based on the associated goal
 colnames(data) <- c(
