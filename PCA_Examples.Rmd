@@ -1,0 +1,630 @@
+---
+title: "PCA Examples"
+author: "JDRS"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###  Examples of PCA in R
+
+Handy libraries
+
+*   Nice graphical representations of correlations
+*   Learn more [here](https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html)
+
+
+```{r}
+library(corrplot)
+library(PerformanceAnalytics)
+library(heplots)
+library(FactoMineR)
+```
+
+
+```{r, echo = FALSE}
+
+#This chunk defines several helpful functions
+
+#####
+#THIS PROGRAM CALCULATES VALUES FOR DETERMINING NUMBER OF PRINCIPLE
+#COMPONENTS TO RETAIN.  IT COMPUTES THE FIRST 10 CUT OFF VALUES FOR
+#TWO PARALLAL METHODS (LONGMAN AND ALLEN) AND THE BROKEN STICK METHOD
+#(FRONTIER).  ;
+#
+#  J Reuning-Scherer
+#  Updated 1.20.25 to print out thresholds
+######
+
+#n is the number of observations in the dataset
+#p is the number of variables in the dataset
+
+parallel<-function(n,p){
+  
+  if (n > 1000 || p > 100) {
+    print ("Sorry, this only works for n<1000 and p<100")
+    stop()
+  }
+  
+  coefs <- matrix(
+    c(0.0316, 0.7611, -0.0979, -0.3138, 0.9794, -.2059, .1226, 0, 0.1162, 
+      0.8613, -0.1122, -0.9281, -0.3781, 0.0461, 0.0040, 1.0578, 0.1835, 
+      0.9436, -0.1237, -1.4173, -0.3306, 0.0424, .0003, 1.0805 , 0.2578, 
+      1.0636, -0.1388, -1.9976, -0.2795, 0.0364, -.0003, 1.0714, 0.3171, 
+      1.1370, -0.1494, -2.4200, -0.2670, 0.0360, -.0024, 1.08994, 0.3809, 
+      1.2213, -0.1619, -2.8644, -0.2632, 0.0368, -.0040, 1.1039, 0.4492, 
+      1.3111, -0.1751, -3.3392, -0.2580, 0.0360, -.0039, 1.1173, 0.5309, 
+      1.4265, -0.1925, -3.8950, -0.2544, 0.0373, -.0064, 1.1421, 0.5734, 
+      1.4818, -0.1986, -4.2420, -0.2111, 0.0329, -.0079, 1.1229, 0.6460, 
+      1.5802, -0.2134, -4.7384, -0.1964, 0.0310, -.0083, 1.1320),ncol=8, byrow=TRUE)
+  
+  calclim <- p
+  if (p > 10) calclim <- 10
+  coefsred <- coefs[1:calclim, ]
+  temp <- c(p:1)
+  #stick <- sort(cumsum(1/temp), decreasing=TRUE)[1:calclim]
+  multipliers <- matrix(c(log(n),log(p),log(n)*log(p),1), nrow=1)
+  longman <- exp(multipliers%*%t(coefs[,1:4]))[1:calclim]
+  allen <- rep(NA, calclim)
+  leig0 <- 0
+  newlim <- calclim
+  if (calclim+2 < p) newlim <-newlim+2
+  for (i in 1:(newlim-2)){
+    leig1 <- coefsred[i,5:8]%*%matrix(c(1,log(n-1),log((p-i-1)*(p-i+2)/2), leig0))
+    leig0 <- leig1
+    allen[i] <- exp(leig1)
+  }
+  pcompnum <- c(1:calclim)
+  #data.frame(cbind(pcompnum,stick,longman,allen))
+  data.frame(cbind(pcompnum,longman,allen))  
+}
+
+#########
+#this function makes a nice plot if given the input from a PCA analysis
+#created by prcomp()
+##
+#arguments are
+#    n=number of observations
+
+parallelplot <- function(comp){
+  if (dim(comp$x)[1] > 1000 || length(comp$sdev) > 100) {
+    print ("Sorry, this only works for n < 1000 and p < 100")
+    stop()
+  }
+  #if (round(length(comp$sdev)) < round(sum(comp$sdev^2))) {
+  #    print ("Sorry, this only works for analyses using the correlation matrix")
+  #    stop()
+  # }
+  
+  parallelanal <- parallel(dim(comp$x)[1], length(comp$sdev))
+  print(parallelanal)
+  calclim <- min(10, length(comp$sdev))
+  eigenvalues <- (comp$sdev^2)[1:calclim]
+  limits <- as.matrix(parallelanal[,2:3])
+  limits <- limits[complete.cases(limits)]
+  ymax <- range(c(eigenvalues),limits)
+  plot(parallelanal$pcompnum, eigenvalues, xlab="Principal Component Number",
+       ylim=c(ymax), ylab="Eigenvalues and Thresholds",
+       main="Scree Plot with Parallel Analysis Limits",type="b",pch=15,lwd=2, col="red")
+  #lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="red",pch=16,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="green",pch=17,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,3], type="b",col="blue",pch=18,lwd=2)
+  #legend((calclim/2),ymax[2],legend=c("Eigenvalues","Stick Method","Longman Method","Allen Method"),  pch=c(15:18), col=c("black","red","green","blue"),lwd=2)
+  legend((calclim/2), ymax[2], legend=c("Eigenvalues","Longman Method","Allen Method"),  pch = c(16:18), col= c("red","green","blue"), lwd=2)
+}
+
+
+#make score plot with confidence ellipse.
+#arguments are output from prcomp, vector with components for plotting (usually c(1,2) or c(1,3)
+#and a vector of names for the points
+
+ciscoreplot<-function(x, comps, namevec){
+  y1<-sqrt(5.99*(x$sdev[comps[1]]^2))
+  ymod<-y1-y1%%.05
+  y1vec<-c(-y1,seq(-ymod,ymod,by=0.05),y1)
+  y2vecpos<-sqrt((5.99-(y1vec^2)/x$sdev[comps[1]]^2)*x$sdev[comps[2]]^2)
+  y2vecneg<--sqrt((5.99-(y1vec^2)/x$sdev[comps[1]]^2)*x$sdev[comps[2]]^2)
+  y2vecpos[1]<-0
+  y2vecneg[1]<-0
+  y2vecpos[length(y2vecpos)]<-0
+  y2vecneg[length(y2vecneg)]<-0
+  
+  plot(x$x[,comps[1]],x$x[,comps[2]], 
+       pch = 19, 
+       cex = 1.2,
+       xlim = c(min(y1vec, x$x[, comps[1]]), max(y1vec, x$x[, comps[1]])),
+       ylim = c(min(y2vecneg, x$x[, comps[2]]), max(y2vecpos, x$x[, comps[2]])),
+       main = "PC Score Plot with 95% CI Ellipse", 
+       xlab = paste("Scores for PC", comps[1], sep = " "), 
+       ylab = paste("Scores for PC", comps[2], sep = " "))
+  
+  lines(y1vec,y2vecpos,col="Red",lwd=2)
+  lines(y1vec,y2vecneg,col="Red",lwd=2)
+  outliers<-((x$x[,comps[1]]^2)/(x$sdev[comps[1]]^2)+(x$x[,comps[2]]^2)/(x$sdev[comps[2]]^2))>5.99
+  
+  points(x$x[outliers, comps[1]], x$x[outliers, comps[2]], pch = 19, cex = 1.2, col = "Blue")
+  
+  text(x$x[outliers, comps[1]],x$x[outliers, comps[2]], col = "Blue", lab = namevec[outliers])
+}
+
+
+#here is an example of how to call the function for the world bank dataset
+#ciscoreplot(pc1, c(1,2), wbtrans[,1])
+
+
+
+```
+
+###  Example Data from pages 188 and following in notes
+
+R comes with several functions to do PCA.  There is a nice discussion [here](http://www.gastonsanchez.com/visually-enforced/how-to/2012/06/17/PCA-in-R/ )  
+
+The best is `prcomp` which comes with the base R package.  This function uses Singular Value Decomposition (SVD) of the data matrix to calculate the rotation and the variances.
+
+The function `princomp()` function is from S (which predates R).  This uses eigenvalue decomposition of the covariance matrix.  This is MATHEMATICALLY the same as SVD on the data matrix, but computationally can give different results.  Most people agree SVD is more reliable (see discussion [HERE](https://stats.stackexchange.com/questions/314046/why-does-andrew-ng-prefer-to-use-svd-and-not-eig-of-covariance-matrix-to-do-pca)
+
+The `PCA()` function in the `FactoMineR` library is also available, and has nice output.  However, this again uses eigenvalue decomposition and I think is less reliable.
+
+Let's try out made-up example:
+```{r}
+#make data matrix
+data_mat <- data.frame(matrix(c(16,12,13,11,10,9,8,7,5,3,2,0,8,10,6,2,8,-1,4,6,-3,-1,-3,0), ncol = 2))
+names(data_mat) <- c("X1", "X2")
+data_mat
+
+#start with prcomp
+comp1 <- prcomp(data_mat)
+summary(comp1)
+#Make output variances not standard deviations
+
+summary.PCA.JDRS <- function(x){
+  sum_JDRS <- summary(x)$importance
+  sum_JDRS[1, ] <- sum_JDRS[1, ]^2
+  attr(sum_JDRS, "dimnames")[[1]][1] <- "Eigenvals (Variance)"
+  sum_JDRS
+}
+
+round(summary.PCA.JDRS(comp1), 3)
+
+#rotation - same as what we calculated by hand
+round(comp1$rotation, 3)
+
+#get means just FYI
+comp1$center
+
+#get total variance
+sum(comp1$sdev^2)
+
+#confirm this is the same as the total variance of the original variables
+sum(apply(data_mat, 2, var))
+
+```
+
+Now let's see what happens if we use the `princomp()` or `PCA()` functions.
+
+```{r}
+
+#use PCA() function
+pc1_a <- PCA(data_mat, scale.unit = F)
+#NOTE - eigenvalues are DIFFERENT although proportion explained is the same
+summary(pc1_a)
+
+#This means sum of eigenvalues is NOT total variance
+sum(apply(data_mat, 2, var))
+sum(pc1_a$eig[,1])
+
+names(pc1_a)
+#Make nice output for loadings
+pc1_loads <- data.frame(round(pc1_a$svd$V, 3))
+rownames(pc1_loads) <- colnames(data_mat)
+colnames(pc1_loads) <- c("PC1", "PC2")
+pc1_loads
+
+```
+Let's now use the `princomp()` function.
+```{r}
+#using princomp
+pc1_b <- princomp(data_mat, cor = F)
+names(pc1_b)
+summary(pc1_b)
+
+#get loadings
+pc1_b$loadings
+
+#check variance - again, not total variance
+sum(round(pc1_b$sdev^2, 3))
+sum(apply(data_mat, 2, var))
+
+```
+
+What happens if we multiple X1 values by 10? We use `prcomp()`.
+
+```{r}
+#make data matrix
+data_mat_10 <- data_mat
+data_mat_10[,1] <-  data_mat_10[,1]*10
+var(data_mat_10[,1])
+var(data_mat_10[,2])
+
+pc1_a_10 <- prcomp(data_mat_10)
+summary.PCA.JDRS(pc1_a_10)
+#show variances
+
+#get loadings - almost no rotation
+round(pc1_a_10$rotation, 3)
+
+```
+Note that using `princomp()` gives a rotation where eigenvalue says there is LESS variance than in the direction of the original variable (so I no longer recommend `princomp()` or `PCA()`)
+
+```{r}
+pc1_b_10 <- princomp(data_mat_10, cor = F)
+pc1_b_10$sdev^2
+
+```
+*NOW* - let's scale variables and see what we get.
+
+```{r}
+#start with prcomp - use the option scale. = T
+comp1 <- prcomp(data_mat, scale. = T)
+round(summary.PCA.JDRS(comp1), 3)
+
+#rotation - clearly 45 deg
+round(comp1$rotation, 3)
+
+#get total variance
+sum(comp1$sdev^2)
+
+#use PCA() function - default is to scale variables
+pc1_a <- PCA(data_mat)
+#NOTE - eigenvalues are now SAME
+summary(pc1_a)
+round(pc1_a$svd$V, 3)
+
+
+#use princomp function - use option cor = T
+pc1_b <- princomp(data_mat, cor = T)
+#now results are the same
+pc1_b$sdev^2
+
+#get loadings
+pc1_b$loadings
+
+```
+
+
+###  World Bank Data 2016
+
+
+```{r}
+#read in data from online location
+WB <- read.csv("http://reuningscherer.net/multivariate/data/WB.2016.WithTrans.csv", header = T)
+names(WB)
+
+#Get subset of data that is complete for relevant variables
+WB2 <- WB[ ,c("Country", "Rural", "GNI", "Imports", "Exports", "Cell", "Fertility16", "InfMort", "LifeExp", "PM2.5", "CO2", "Diesel", "EnergyUse")]
+
+#We need complete cases for code to work
+WB2 <- WB2[complete.cases(WB2), ]
+dim(WB2)
+```
+
+
+For starters, make correlation matrices and use visual representations.
+```{r}
+#make correlation matrix to see if PCA will work well - remove column of country names
+round(cor(WB2[, -1]), 2)
+
+#Cooler visual representation of correlations
+corrplot(cor(WB2[, -1]), method = "ellipse")
+
+#Cooler visual representation of correlations
+#Order option orders variables based on data order, alphabetically, results of cluster analysis, etc.
+#  See help file or link above to get details.
+
+corrplot(cor(WB2[,-1]),method = "ellipse", order="FPC")
+corrplot(cor(WB2[,-1]),method = "ellipse", order="AOE")
+corrplot(cor(WB2[,-1]),method = "ellipse", order="hclust")
+
+#Lots of options here - but my personal favorite
+corrplot.mixed(cor(WB2[,-1]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .7, order = "hclust", tl.pos = "lt", tl.cex = .7)
+```
+
+
+It's also important to check for linearity.
+```{r, warning = FALSE}
+#make matrix plot to check for linearity
+plot(WB2[,-1], pch = 19, cex = .7, col = 'red', main = "Matrix plot of WB raw data")
+
+#Here is a cool way to look for non-linearity, get correlation, make histograms all at once.
+chart.Correlation(WB2[, -1])
+
+```
+
+Let's see if data happens to have multivariate normal distribution (not required but handy for parallel analysis)
+
+```{r}
+
+#run the function
+cqplot(WB2[,-1], main = "World Bank Data")
+```
+
+Seems like transformed variables are likely to be closer to multivariate normal.  Let's get this data for reference.
+
+```{r}
+WBtrans <- WB[, c("Country", "Rural", "logGNI", "logImports", "logExports", "Cell", "Fertility16",
+                  "InfMort", "LifeExp", "PM2.5", "logCO2", "Diesel", "logEnergyUse")]
+WBtrans <- WBtrans[complete.cases(WBtrans),]
+
+#run the function 
+cqplot(WBtrans[,-1], main = "Transformed World Bank Data")
+
+```
+
+
+Here is correlation plot for transformed data
+
+```{r}
+corrplot.mixed(cor(WBtrans[,-1]), lower.col = "black", upper = "ellipse", tl.col = "black", 
+               number.cex=.7, order = "hclust", tl.pos = "lt", tl.cex=.7, 
+               main="Correlations for Transformed WB Data")
+```
+
+Check linearity with matrix plots
+
+```{r, warning = FALSE}
+#make matrix plot to check for linearity
+
+#Here is a cool way to look for non-linearity, get correlation, make histograms all at once.
+chart.Correlation(WBtrans[, -1], histogram = TRUE, pch = 19)
+```
+
+
+###  Run PCA on World Bank Data
+
+#####FIRST, use prcomp()
+
+```{r}
+#scale. = TRUE means run on the correlation matrix, i.e. standardize the variables.
+pc1 <- prcomp(WB2[, -1], scale. = TRUE)
+```
+
+
+Objects created : loadings are the eigenvectors, scores are, well, the scores, sdev is sqrt of eigenvalues!
+
+```{r}
+#print results - 
+#Here are eigenvalues
+round(summary.PCA.JDRS(pc1),2)
+
+#Get loadings
+round(pc1$rotation,2)
+
+```
+
+Make a screeplot  
+
+
+```{r}
+screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Raw WB Data")
+```
+
+Perform parallel analysis.
+
+```{r}
+#get function from online
+#source("http://reuningscherer.net/multivariate/r/parallel.R.txt")
+
+#make the parallel analysis plot using the parallelplot function
+parallelplot(pc1)
+```
+
+Make scoreplot with confidence ellipse as well as a biplot.
+
+```{r}
+#  c(1, 2) specifies to use components 1 and 2
+#get function from online
+#source("http://reuningscherer.net/multivariate/r/ciscoreplot.R.txt")
+
+#run the function
+ciscoreplot(pc1, c(1, 2), WB2[, 1])
+
+#make a biplot for first two components
+biplot(pc1, choices = c(1, 2), pc.biplot = T)
+```
+
+
+####SECOND, use PCA() function in FactoMineR on RAW World Bank Data
+
+You can learn about FactoMineR in this [video]?( https://www.youtube.com/watch?v=CTSbxU6KLbM&list=PLnZgp6epRBbTsZEFXi_p6W48HhNyqwxIu&index=3)
+
+```{r}
+library(FactoMineR)
+
+#Make rownames of WB2 equal to country names
+rownames(WB2) <- WB2[, 1]
+
+#The PCA function scales variables by default, and gives a scoreplot and a 'correlation' biplot.  Notice results are flipped vertically from results above.
+
+par(cex = .8, col = "blue")
+pc2 <- PCA(WB2[, -1])
+dev.off()
+summary(pc2)
+
+#make a screeplot - oddly, not easy in this package . . .  
+#parallel analysis,etc, use princomp() or prcomp()
+
+```
+
+####  RUN PCA ON TRANSFORMED DATA
+
+
+```{r}
+pc1_trans <- prcomp(WBtrans[, -1], scale. = T)
+
+#Here are variances
+round(summary.PCA.JDRS(pc1_trans), 2)
+
+#Get loadings
+round(pc1_trans$rotation, 2)
+
+
+#make a screeplot  
+screeplot(pc1_trans, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Transformed WB Data")
+
+#perform parallel analysis
+
+#make the parallel analysis plot
+parallelplot(pc1_trans)
+
+#make scoreplot with confidence ellipse : 
+#  c(1,2) specifies to use components 1 and 2
+#run the function
+ciscoreplot(pc1_trans, c(1, 2), WBtrans[, 1])
+
+#make a biplot for first two components
+biplot(pc1_trans, choices = c(1, 2), pc.biplot = T)
+```
+
+
+##   Environmental Attitudes Data
+
+```{r}
+#get data : change path to wherever you have data.
+envatt <- read.delim("http://reuningscherer.net/multivariate/data/EnvAttitudes.1974.txt", header = T, sep = "\t")
+
+#Keep complete cases
+envatt <- na.omit(envatt)
+
+#Notice that a matrix plot to check for linearity is useless here
+plot(envatt, pch = 19, cex = .7, col = 'red', main = "Matrix plot of Env Attitude Data")
+
+#Here is correlation plot - correlations are a bit weak!
+corrplot.mixed(cor(envatt), lower.col = "black", upper = "ellipse", tl.col = "black", 
+               number.cex = .7, order = "hclust", tl.pos = "lt", tl.cex = .7, 
+               main = "Correlations for Env Attitude Data")
+
+#Check for multivariate normality - not perfect, but then with Likert Scale data we wouldn't expect this
+cqplot(envatt, label="Env. Survey Data")
+
+
+```
+
+Perform PCA
+
+```{r}
+#perform PCA
+pc3 <- prcomp(envatt[complete.cases(envatt), ], scale. = T)
+
+#Here are standard deviations
+round(summary.PCA.JDRS(pc3), 2)
+
+#Get loadings
+round(pc3$rotation, 2)
+
+#make a scree plot with parallel analysis
+parallelplot(pc3)
+
+#make scoreplot with confidence ellipse : 
+#  c(1,2) specifies to use components 1 and 2
+
+#run the function
+ciscoreplot(pc3, c(1, 2), c(1:dim(pc3$x)[1]))
+
+
+#make a biplot for first two components
+
+biplot(pc3, choices = c(1, 2), pc.biplot = T, cex = .7)
+```
+
+###  PCA - NASA Understory Data
+
+```{r}
+#read in data from online location
+NASA <- read.csv("http://reuningscherer.net/multivariate/data/NASA1/snf/NASAUnderstory.csv", header = T)
+head(NASA)
+names(NASA)
+
+#get long version of species columns labels
+NASA.lab <- NASA$Labels
+NASA <- NASA[, -32]
+
+head(NASA)
+
+#Correlation Plot
+corrplot.mixed(cor(NASA[, -c(1:2)]), lower.col = "black", upper = "ellipse", tl.col = "black", 
+               number.cex = .7, order = "hclust", tl.pos = "lt", tl.cex = .7, 
+               main = "Correlations for NASA Data")
+
+#Run PCA - remove column ID and species name
+pc4 <- prcomp(NASA[, -c(1:2)], scale. = T)
+
+#Here are standard deviations
+round(summary.PCA.JDRS(pc4), 2)
+
+#Get loadings
+round(pc4$rotation, 2)
+
+
+```
+
+```{r}
+
+#Evaluate Multivariate Normality
+cqplot(NASA[, -c(1:2)], label = "NASA Understory")
+
+#make a scree plot with parallel analysis
+parallelplot(pc4)
+
+
+#make scoreplot with confidence ellipse: 
+#  c(1,2) specifies to use components 1 and 2
+ciscoreplot(pc4, c(1, 2), c(1:dim(pc4$x)[1]))
+
+#I was curious which overstory species was on each side
+text(pc4$x[, 1], pc4$x[, 2], labels = NASA[, 2], cex = 0.6, col = as.numeric(NASA[, 2]))
+
+
+#make a biplot for first two components
+biplot(pc4, choices = c(1,2), pc.biplot = T, cex = 0.7)
+
+```
+
+
+Some thoughts on data where outliers can cause unusual results.
+
+```{r}
+
+set.seed(363)
+datatemp <- cbind(c(rnorm(50), 10), c(rnorm(50), 10), c(rnorm(50), 10), c(rnorm(50), 10))
+datatemp
+chart.Correlation(datatemp, histogram = T, pch = 10)
+
+PC1 <- prcomp(datatemp, scale. = T)
+summary.PCA.JDRS(PC1)
+
+parallelplot(PC1)
+
+ciscoreplot(PC1, c(1, 2), c(1:dim(PC1$x)[1]))
+
+#repeat everything without the multivariate outlier
+
+datatemp <- datatemp[-51, ]
+chart.Correlation(datatemp, histogram = T, pch = 10)
+
+PC1 <- prcomp(datatemp, scale. = T)
+summary.PCA.JDRS(PC1)
+
+parallelplot(PC1)
+
+ciscoreplot(PC1, c(1, 2), c(1:dim(PC1$x)[1]))
+
+
+```
+
