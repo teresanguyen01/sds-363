@@ -55,3 +55,9 @@ head(data)
 table(data$overall_score)
 ```
 
+```{r}
+
+x <- 5
+x
+
+```
