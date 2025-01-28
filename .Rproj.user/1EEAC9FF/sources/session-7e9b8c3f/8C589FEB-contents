@@ -1,0 +1,57 @@
+---
+title: "S&DS 363 Pset1"
+output: html_document
+date: "2025-01-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Cleaning
+
+Renamed the columns and changed overall score to be a categorical variable.
+
+```{r cars}
+data <- read.csv("/Users/franklinwu/Desktop/sustainable_development_report_2023.csv")
+
+# Rename the columns based on the associated goal
+colnames(data) <- c(
+  "country_code",                         # Country code of the respective country
+  "country",                              # Name of the country
+  "region",                               # Region to which the country belongs
+  "overall_score",                        # Overall SDG index score
+  "no_poverty",                           # Goal 1: No Poverty
+  "zero_hunger",                          # Goal 2: Zero Hunger
+  "good_health_and_wellbeing",            # Goal 3: Good Health and Wellbeing
+  "quality_education",                    # Goal 4: Quality Education
+  "gender_equality",                      # Goal 5: Gender Equality
+  "clean_water_and_sanitation",           # Goal 6: Clean Water and Sanitation
+  "affordable_and_clean_energy",          # Goal 7: Affordable and Clean Energy
+  "decent_work_and_economic_growth",      # Goal 8: Decent Work and Economic Growth
+  "industry_innovation_and_infrastructure", # Goal 9: Industry, Innovation and Infrastructure
+  "reduced_inequalities",                 # Goal 10: Reduced Inequalities
+  "sustainable_cities_and_communities",   # Goal 11: Sustainable Cities and Communities
+  "responsible_consumption_and_production", # Goal 12: Responsible Consumption and Production
+  "climate_action",                       # Goal 13: Climate Action
+  "life_below_water",                     # Goal 14: Life Below Water
+  "life_on_land",                         # Goal 15: Life on Land
+  "peace_justice_and_strong_institutions",# Goal 16: Peace, Justice and Strong Institutions
+  "partnerships_for_the_goals"            # Goal 17: Partnerships for the Goals
+)
+
+#change overall score to a categorical variable (70 is high and 50 is low)
+data$overall_score <- ifelse(
+  data$overall_score < 50, "Poor",
+  ifelse(data$overall_score > 70, "Good", "Average")
+)
+
+# Convert the new column to a factor
+data$overall_score <- as.factor(data$overall_score)
+
+
+# Check dataset
+head(data)
+table(data$overall_score)
+```
+
