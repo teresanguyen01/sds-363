@@ -176,7 +176,7 @@ head(data)
 table(data$overall_score)
 
 ```
-```{r, warning = FALSE}
+```{r, warning=FALSE}
 library(corrplot)
 
 #include complete cases
@@ -221,6 +221,17 @@ summary.PCA.JDRS <- function(x){
   sum_JDRS
 }
 
+pc1 <- prcomp(data[, -c(1:4)], scale. = TRUE)
+
+round(summary.PCA.JDRS(pc1),2)
+
+round(pc1$rotation,2)
+
+screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Raw WB Data")
+
+source("http://reuningscherer.net/multivariate/r/parallel.R.txt")
+parallelplot(pc1)
 ```
 
 
