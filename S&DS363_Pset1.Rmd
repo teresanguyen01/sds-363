@@ -135,6 +135,8 @@ ciscoreplot<-function(x, comps, namevec){
 
 ```{r cars}
 data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
+data <- data[complete.cases(data), ]
+dim(data)
 
 # Rename the columns based on the associated goal
 colnames(data) <- c(
@@ -181,6 +183,55 @@ library(corrplot)
 
 #include complete cases
 data <- data[complete.cases(data), ]
+data <- data[, c(
+  "Country",
+  "UNDP.Developing.Regions",
+  "HDI.Rank..2021.",
+  "Human.Development.Index..2021.",
+  "Life.Expectancy.at.Birth..2021.",
+  "Mean.Years.of.Schooling..2021.",
+  "Gross.National.Income.Per.Capita..2021.",
+  "Gender.Development.Index..2021.",
+  "Coefficient.of.human.inequality..2021.",
+  "Overall.loss......2021.",
+  "Gender.Inequality.Index..2021.",
+  "Maternal.Mortality.Ratio..deaths.per.100.000.live.births...2021.",
+  "Adolescent.Birth.Rate..births.per.1.000.women.ages.15.19...2021.",
+  "Labour.force.participation.rate..female....ages.15.and.older...2021.",
+  "Labour.force.participation.rate..male....ages.15.and.older...2021.",
+  "Carbon.dioxide.emissions.per.capita..production...tonnes...2021."
+)]
+
+colnames(data) <- c(
+  "Country",
+  "Region",
+  "HDI_Rank_2021",
+  "HDI_2021",
+  "Life_Expectancy_2021",
+  "Mean_Years_Schooling_2021",
+  "GNI_Per_Capita_2021",
+  "Gender_Dev_Index_2021",
+  "Human_Inequality_Coeff_2021",
+  "Overall_Loss_2021",
+  "Gender_Inequality_Index_2021",
+  "Maternal_Mortality_Rate_2021",
+  "Adolescent_Birth_Rate_2021",
+  "Female_Labour_Force_2021",
+  "Male_Labour_Force_2021",
+  "CO2_Emissions_percapita_2021"
+)
+
+missing_counts <- colSums(is.na(data))
+missing_counts
+most_missing_column <- names(missing_counts[which.max(missing_counts)])
+most_missing_column
+
+
+dim(data)
+
+
+
+
 
 corrplot.mixed(cor(data[ ,-c(1:4)]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .3, order = "hclust", tl.pos = "lt", tl.cex = .5)
 
