@@ -56,7 +56,7 @@ data$overall_score <- as.factor(data$overall_score)
 head(data)
 table(data$overall_score)
 ```
-```{r}
+```{r, warning = FALSE}
 library(corrplot)
 
 #include complete cases
