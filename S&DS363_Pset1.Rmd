@@ -8,12 +8,14 @@ date: "2025-01-28"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Data Cleaning
+## R Markdown
 
-Renamed the columns and changed overall score to be a categorical variable.
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-data <- read.csv("../SDS_363/sustainable_development_report_2023.csv")
+data <- read.csv("/Users/franklinwu/Desktop/sustainable_development_report_2023.csv")
 
 # Rename the columns based on the associated goal
 colnames(data) <- c(
@@ -54,11 +56,22 @@ data$overall_score <- as.factor(data$overall_score)
 head(data)
 table(data$overall_score)
 ```
+```{r}
+library(corrplot)
+
+#include complete cases
+data <- data[complete.cases(data), ]
+
+corrplot.mixed(cor(data[ ,-c(1:4)]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .3, order = "hclust", tl.pos = "lt", tl.cex = .5)
+
+
+chart.Correlation(data[, -c(1:4)])
+```
+*Based on our plots showing the correlation between our variables, there appears to be decently strong positive and negative correlations between our variables, suggesting that PCA may be an effective strategy to utilize since we can reduce dimesionality without losing too much information. Based on the corrplot, some variables with very strong positive correlations include community sustainability and health & well being (r = 0.85), quality education and health & well being (r = 0.84), and no poverty and innovation/infrastructure (r = 0.8). Likewise, there are some decently strong negative correlation between our variables such as sustainable cities and responsible consumption (r = -0.72) and climate action and innovation/infrastructure (-0.76). Looking at the scatterplots between our variables also shows some non-linearity, which may suggust using transformations.*
 
 ```{r}
+library(car)
 
-x <- 5
-x
-
+cqplot(data[, -c(1:4)], main = "World Bank Data")
 ```
 
