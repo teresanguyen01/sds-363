@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Renamed the columns and changed overall score to be a categorical variable.
 
 ```{r cars}
-data <- read.csv("/Users/franklinwu/Desktop/sustainable_development_report_2023.csv")
+data <- read.csv("../SDS_363/sustainable_development_report_2023.csv")
 
 # Rename the columns based on the associated goal
 colnames(data) <- c(
