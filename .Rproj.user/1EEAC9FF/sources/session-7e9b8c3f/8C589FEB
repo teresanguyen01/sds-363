@@ -3,9 +3,9 @@
     "path": "~/Documents/SDS_363/S&DS363_Pset1.Rmd",
     "project_path": "S&DS363_Pset1.Rmd",
     "type": "r_markdown",
-    "hash": "2454516776",
+    "hash": "133227165",
     "contents": "",
-    "dirty": false,
+    "dirty": true,
     "created": 1738035068389.0,
     "source_on_save": false,
     "relative_order": 1,
@@ -13,15 +13,15 @@
         "source_window_id": "",
         "Source": "Source",
         "last_setup_crc32": "7e9b8c3fbb338d19",
-        "cursorPosition": "44,19",
-        "scrollLine": "38"
+        "cursorPosition": "63,0",
+        "scrollLine": "36"
     },
     "folds": "",
-    "lastKnownWriteTime": 1738035655,
+    "lastKnownWriteTime": 1738036076,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1738035655119,
+    "last_content_update": 1738036083352,
     "read_only": false,
     "read_only_alternatives": []
 }
