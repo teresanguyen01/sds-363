@@ -177,6 +177,7 @@ data <- data[complete.cases(data), ]
 
 ```{r, warning=FALSE}
 library(corrplot)
+library(PerformanceAnalytics)
 #Figure out library for chart.Correlation
 corrplot.mixed(cor(data[ ,-c(1:3)]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .3, order = "hclust", tl.pos = "lt", tl.cex = .5)
 

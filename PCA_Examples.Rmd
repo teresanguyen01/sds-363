@@ -22,7 +22,7 @@ Handy libraries
 ```{r}
 library(corrplot)
 library(PerformanceAnalytics)
-library(heplots)
+#library(heplots)
 library(FactoMineR)
 ```
 
