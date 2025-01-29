@@ -175,3 +175,76 @@ colnames(data) <- c(
 data <- data[complete.cases(data), ]
 ```
 
+```{r, warning=FALSE}
+library(corrplot)
+#Figure out library for chart.Correlation
+corrplot.mixed(cor(data[ ,-c(1:3)]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .3, order = "hclust", tl.pos = "lt", tl.cex = .5)
+
+chart.Correlation(data[, -c(1:3)])
+```
+*Based on our plots showing the correlation between our variables, there appears to be decently strong positive and negative correlations between our variables, suggesting that PCA may be an effective strategy to utilize since we can reduce dimensionality without losing too much information. Moreover, the relationships exhibited between variables, for the most part, appear to be linear. Looking at the scatter plots between our variables does show some non-linearity (for instance, the relationship between GNI pc and mortality rate), which may suggest the use of transformations.*
+
+```{r}
+# MAKE chi-square quantile plot
+library(heplots)
+cqplot(data[, -c(1:3)], main = "World Bank Data")
+```
+
+
+```{r}
+# Apply log transformation to specific columns 
+data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")] <- lapply(data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")], log)
+
+chart.Correlation(data[, -c(1:3)])
+```
+*We used log transformations of the following variables: GNI PerCapita, Gender Dev Index, Maternal Mortality Rate, Adolescent Birth Rate, and CO2 Emissions percapita. These variables were not distributed normally and thus has non-linear relationships with our other variables, potentially impacting the effectiveness of PCA. Following the transformations of these variables, the distribution (using a histogram) appear to be normal and all of our relationships between the variables are mostly linear.*
+
+```{r}
+# MAKE another chi-square quantile plot
+library(heplots)
+cqplot(data[, -c(1:3)], main = "World Bank Data")
+```
+
+```{r}
+corrplot(cor(data[ ,-c(1:3)]), method="number", order="FPC", tl.cex = .5, number.cex = .3)
+corrplot(cor(data[ ,-c(1:3)]),method = "ellipse", order="FPC", tl.cex = .5)
+
+dim(data)
+```
+*As mentioned in question 1, there appears to be fairly strong correlations (both positive and negative) between our variables. Based on the corrplot, some variables with very strong positive correlations include overall loss and gender inequality (r = 0.88), birth rate and human inequality coefficient (r = 0.88), and gender inequality and birth rate (r = 0.81). Likewise, there are some decently strong negative correlation between our variables such as mean years of education and human inequality (r = -0.89), gender inequality and life expectancy (r = -0.85) and human inequality and life expectancy (-0.85). This suggests that PCA should work relatively well on our given data since strong correlations implies that a lot of the variance is being described by multiple variables and as such, we can capture a lot of the variability by using a set of principle components (thus reducing our dimensions overall). Our dataset is composed of 150 complete observations and 13 variables (there are 16 total variables but we excluded 3 of them from our analysis since they are categorical). Relative to the number of variables our sample size is sufficiently large enough (there are over 10 times the amount of complete oberservations as variables) and we can use a rule of them to ensure that our data set is large enough for PCA.*
+
+```{r}
+
+summary.PCA.JDRS <- function(x){
+  sum_JDRS <- summary(x)$importance
+  sum_JDRS[1, ] <- sum_JDRS[1, ]^2
+  attr(sum_JDRS, "dimnames")[[1]][1] <- "Eigenvals (Variance)"
+  sum_JDRS
+}
+
+pc1 <- prcomp(data[, -c(1:3)], scale. = TRUE)
+
+round(summary.PCA.JDRS(pc1),2)
+
+```
+*Using the total variance explained by a given number of principle components, we can use a total explained cutoff of 80%. Under this threshold, we would need three principle components to capture at least 80% of the total variance. In this case, the first principal component explains 65% of the total variance, 12% for the second principle component and 6% for the third for a total of 83%. Using the eigenvalues >1 rule, we would only retain the first two principle components with eigenvalues of 8.47 and 1.62 respectively.*
+
+```{r}
+screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Raw WB Data")
+```
+*Using the scree plot elbow method, there is an apparent elbow at the second principle component (there also looks to be one at the third but this is less clear). Using the second principle component as the cutoff, we would only retain one principle component according to the scree plot.*
+
+```{r}
+source("http://reuningscherer.net/multivariate/r/parallel.R.txt")
+parallelplot(pc1)
+```
+*Since parallel analysis assumes that the data is suitable for PCA, we can use it as a valid method to determine the number of principle components to keep - after transforming the data, we have linear relationships between all of our variables and also normality (although this isn't a necessary condition for PCA). Based on parallel analysis, we should retain 2 principle components, since the cutoff is right below the second component.*
+
+```{r}
+round(pc1$rotation,2)
+```
+*Based on our analysis, we decided to retain only the first 2 principle components. The first component appears to be a general measure of overall well being and development: the positive loadings for the first component that are significant include variables such as HDI, life expectancy and mean years of schooling, which are all important benchmarks when judging the development of a country. On the other hand, the loadings that are equally large in magnitude but negative include the inequality level, overall loss, gender inequality and the mortality rate. These loadings are indicative of lesser developed countries which is why they are opposite in sign to the positive loadings, which are the signs of development. Our second principle component describes gender equality. There are three variables with large loadings in magnitude: the gender development index, participation in the female labor force and participation in the male labor force. These variables all share relationships with gender and measure the overall gender equality of countries - looking more holistically using the gender inequality index in addition to the employment levels of males vs females.
+
+
+
