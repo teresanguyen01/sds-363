@@ -2,6 +2,7 @@
 title: "S&DS_Pset1-1"
 output: html_document
 date: "2025-01-28"
+author: "Franklin Wu and Teresa Nguyen"
 ---
 
 ```{r setup, include=FALSE}
