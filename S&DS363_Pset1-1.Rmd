@@ -1,19 +1,21 @@
 ---
-title: "S&DS_Pset1-1"
-output: html_document
-date: "2025-01-28"
+title: "S&DS 363 Problem Set 1: Principal Component Analysis"
 author: "Franklin Wu and Teresa Nguyen"
+date: "2025-02-03"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Human Development Index Principal Component Analysis
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+*Principal Component Analysis (PCA)* is a statistical method used for dimensionality reduction, simplifying large data sets into smaller, more manageable sets. In this homework assignment, we will apply PCA to the 2021 Human Development Index and explain its effectiveness in our analysis.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+### Import Functions from JDRS
 
 ```{r}
 #This chunk defines several helpful functions
@@ -91,13 +93,16 @@ parallelplot <- function(comp){
   #lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="red",pch=16,lwd=2)
   lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="green",pch=17,lwd=2)
   lines(parallelanal$pcompnum,parallelanal[,3], type="b",col="blue",pch=18,lwd=2)
-  #legend((calclim/2),ymax[2],legend=c("Eigenvalues","Stick Method","Longman Method","Allen Method"),  pch=c(15:18), col=c("black","red","green","blue"),lwd=2)
-  legend((calclim/2), ymax[2], legend=c("Eigenvalues","Longman Method","Allen Method"),  pch = c(16:18), col= c("red","green","blue"), lwd=2)
+  #legend((calclim/2),ymax[2],legend=c("Eigenvalues","Stick Method","Longman Method",
+  # "Allen Method"),  pch=c(15:18), col=c("black","red","green","blue"),lwd=2)
+  legend((calclim/2), ymax[2], legend=c("Eigenvalues","Longman Method","Allen Method"), 
+         pch = c(16:18), col= c("red","green","blue"), lwd=2)
 }
 
 
 #make score plot with confidence ellipse.
-#arguments are output from prcomp, vector with components for plotting (usually c(1,2) or c(1,3)
+#arguments are output from prcomp, vector with components for plotting 
+# (usually c(1,2) or c(1,3)
 #and a vector of names for the points
 
 ciscoreplot<-function(x, comps, namevec){
@@ -131,10 +136,15 @@ ciscoreplot<-function(x, comps, namevec){
 
 ```
 
+### Data Cleaning 
+
+Read in Data, choose the columns that best fit our needs, and rename the columns.
 
 ```{r}
+
 data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
 
+# Based on going through the Kaggle dataset and choosing the most relevant features
 data <- data[, c(
   "Country",
   "UNDP.Developing.Regions",
@@ -154,6 +164,7 @@ data <- data[, c(
   "Carbon.dioxide.emissions.per.capita..production...tonnes...2021."
 )]
 
+# rename for better readability
 colnames(data) <- c(
   "Country",
   "Region",
@@ -173,21 +184,43 @@ colnames(data) <- c(
   "CO2_Emissions_percapita_2021"
 )
 
+# removes all rows in the data object that contain any missing (NA) values
+# our data frame should only include complete cases 
 data <- data[complete.cases(data), ]
 ```
+
+## Initial Analysis with Scatterplots and Heatmaps
+
+We begin our initial analysis of the data using scatterplots and heatmaps to assess linearity, correlations, and whether the data appears suitable for PCA at first glance. Our goal is to use PCA to reduce redundant variance and capture shared variance. Additionally, we can check for outliers and non-linear patterns.
 
 ```{r, warning=FALSE}
 library(corrplot)
 library(PerformanceAnalytics)
 
-corrplot.mixed(cor(data[ ,-c(1:3)]), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .3, order = "hclust", tl.pos = "lt", tl.cex = .5)
+corrplot.mixed(
+  cor(data[, -c(1:3)]),
+  lower.col = "black",
+  upper = "ellipse",
+  tl.col = "black",
+  number.cex = 0.3,
+  order = "hclust",
+  tl.pos = "lt",
+  tl.cex = 0.5
+)
+
 
 chart.Correlation(data[, -c(1:3)])
 ```
-*Based on our plots showing the correlation between our variables, there appears to be decently strong positive and negative correlations between our variables, suggesting that PCA may be an effective strategy to utilize since we can reduce dimensionality without losing too much information. Moreover, the relationships exhibited between variables, for the most part, appear to be linear. Looking at the scatter plots between our variables does show some non-linearity (for instance, the relationship between GNI pc and mortality rate), which may suggest the use of transformations.*
+*Based on our plots showing the correlation between our variables, there appear to be decently strong positive and negative correlations between them, suggesting that PCA may be an effective strategy to utilize since we can reduce dimensionality without losing too much information. For example, variables such as HDI, life expectancy, and mean years of schooling have strong positive correlations that are over 0.75, making PCA suitable for dimensionality reduction, as shown by the strong correlations with certain variables, which could be redundant. There are also many other variables that are correlated with one another, which is a sign that PCA can capture the variance of the features. For instance, gender and human inequality indices show strong negative correlations with the mean years of schooling and the human development index. Intuitively, these relationships imply that these variables may be interconnected, making them suitable for PCA.*
+
+*Moreover, the relationships exhibited between variables, for the most part, appear to be linear. However, looking at the scatter plots between our variables, there does seem to be some non-linearity (for instance, the relationship between GNI per capita and mortality rate), which may suggest the use of transformations.*
+
+### Multivariate Normality Check and Transformations
+
+We check for multivariate normality using the Mahalanobis distance and a Chi-square Q-Q plot. If the data is multivariate normal, the principal components will be uncorrelated and independent, making it easier to interpret each principal component. The Mahalanobis distance measures how far a data point is from the center of the data distribution and is primarily used to assess whether a data point is an outlier. A large Mahalanobis distance suggests the presence of an outlier. The Chi-square Q-Q plot provides a visual representation of the Mahalanobis distances.
 
 ```{r}
-library(MASS) 
+library(MASS)
 library(car)   
 data1 <- as.matrix(data[, -c(1:3)])  
 
@@ -206,16 +239,31 @@ qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
 #library(heplots)
 #cqplot(data[, -c(1:3)], main = "World Bank Data")
 ```
-*Based on the chi-square quantile plot, a large number of observation fall outside of the boundary (that is associated with if our data was multivariate normal) and follows a non-linear pattern, with the latter half curving upwards.*
 
+*Based on the Chi-square quantile plot, a large number of observations fall outside the boundary expected under multivariate normality and follow a non-linear pattern, with the latter half curving upwards. The non-linear tail suggests that the data may not be multivariate normal, which could impact our PCA results. To address this issue, we decided to apply a log transformation to specific columns (as shown below).*
 
-```{r}
+```{r, warning=FALSE}
 # Apply log transformation to specific columns 
-data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")] <- lapply(data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")], log)
+data[c(
+  "GNI_Per_Capita_2021", 
+  "Gender_Dev_Index_2021", 
+  "Maternal_Mortality_Rate_2021", 
+  "Adolescent_Birth_Rate_2021", 
+  "CO2_Emissions_percapita_2021"
+)] <- lapply(
+  data[c(
+    "GNI_Per_Capita_2021", 
+    "Gender_Dev_Index_2021", 
+    "Maternal_Mortality_Rate_2021", 
+    "Adolescent_Birth_Rate_2021", 
+    "CO2_Emissions_percapita_2021"
+  )], 
+  log
+)
 
 chart.Correlation(data[, -c(1:3)])
 ```
-*We used log transformations of the following variables: GNI PerCapita, Gender Dev Index, Maternal Mortality Rate, Adolescent Birth Rate, and CO2 Emissions percapita. These variables were not distributed normally and thus has non-linear relationships with our other variables, potentially impacting the effectiveness of PCA. Following the transformations of these variables, the distribution (using a histogram) appear to be normal and all of our relationships between the variables are mostly linear.*
+*We used log transformations of the following variables: GNI Per Capita, Gender Dev Index, Maternal Mortality Rate, Adolescent Birth Rate, and CO2 Emissions per capita. These variables were not distributed normally and thus has non-linear relationships with our other variables, potentially impacting the effectiveness of PCA. Following the transformations of these variables, the distribution (using a histogram) appear to be normal and all of our relationships between the variables are mostly linear.*
 
 ```{r}
 data1 <- as.matrix(data[, -c(1:3)])  
@@ -231,15 +279,21 @@ qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
        xlab = "Theoretical Quantiles",
        ylab = "Observed Mahalanobis Distances")
 ```
-*After making log adjustments of our variables with distributions that were not normal, our normal quantile plot is contained more within the bounds. There are still a few observations that are outliers and curve upwards, but our distribution appears to be much more similar to a multi-variate normal dsitribution than before we made the transformations.*
+*After making log adjustments of our variables with distributions that were not normal, our normal quantile plot is contained more within the bounds. There are still a few observations that are outliers and curve upwards, but our distribution appears to be much more similar to a multi-variate normal dsitribution than before we made the transformations. Based on the chi-square quantile plot, most of the data points fall within the diagonal line, showing that the squared Mahalanobis distances are consistent with the chi-square distribution, which means that the data is mostly mutlivariate normal. However, there are a couple of data points that are outliers such as at 176 and 192.*
+
+### Correlation Analysis and PCA Suitability
+
+For our next step, we created correlation plots to determine correlation coefficients and correlations. We order it based on first principal component to identify the correlated groups and analyze whether PCA is a suitable method. 
 
 ```{r}
-corrplot(cor(data[ ,-c(1:3)]), method="number", order="FPC", tl.cex = .5, number.cex = .3)
+corrplot(cor(data[ ,-c(1:3)]), method="number", order="FPC", tl.cex = .5, 
+         number.cex = .3)
 corrplot(cor(data[ ,-c(1:3)]),method = "ellipse", order="FPC", tl.cex = .5)
 
 dim(data)
 ```
-*As mentioned in question 1, there appears to be fairly strong correlations (both positive and negative) between our variables. Based on the corrplot, some variables with very strong positive correlations include overall loss and gender inequality (r = 0.88), birth rate and human inequality coefficient (r = 0.88), and gender inequality and birth rate (r = 0.81). Likewise, there are some decently strong negative correlation between our variables such as mean years of education and human inequality (r = -0.89), gender inequality and life expectancy (r = -0.85) and human inequality and life expectancy (-0.85). This suggests that PCA should work relatively well on our given data since strong correlations implies that a lot of the variance is being described by multiple variables and as such, we can capture a lot of the variability by using a set of principle components (thus reducing our dimensions overall). Our dataset is composed of 150 complete observations and 13 variables (there are 16 total variables but we excluded 3 of them from our analysis since they are categorical). Relative to the number of variables our sample size is sufficiently large enough (there are over 10 times the amount of complete oberservations as variables) and we can use a rule of them to ensure that our data set is large enough for PCA.*
+*As mentioned in question 1, there appears to be fairly strong correlations (both positive and negative) between our variables. Based on the corrplot, some variables with very strong positive correlations include overall loss and gender inequality (r = 0.88), adolescent birth rate and human inequality coefficient (r = 0.88), and gender inequality and adolescent birth rate (r = 0.81). Likewise, there are some decently strong negative correlation between our variables such as mean years of education and human inequality (r = -0.89), gender inequality and life expectancy (r = -0.85) and human inequality and life expectancy (-0.85). This suggests that PCA should work relatively well on our given data since strong correlations implies that a lot of the variance is being described by multiple variables and as such, we can capture a lot of the variability by using a set of principle components (thus reducing our dimensions overall). Our dataset is composed of 150 complete observations and 13 variables (there are 16 total variables but we excluded 3 of them from our analysis since they are categorical). Relative to the number of variables our sample size is sufficiently large enough (there are over 10 times the amount of complete oberservations as variables) and we can use a rule of them to ensure that our data set is large enough for PCA.*
+
 
 ```{r}
 
@@ -255,37 +309,62 @@ pc1 <- prcomp(data[, -c(1:3)], scale. = TRUE)
 round(summary.PCA.JDRS(pc1),2)
 
 ```
-*Using the total variance explained by a given number of principle components, we can use a total explained cutoff of 80%. Under this threshold, we would need three principle components to capture at least 80% of the total variance. In this case, the first principal component explains 65% of the total variance, 12% for the second principle component and 6% for the third for a total of 83%. Using the eigenvalues >1 rule, we would only retain the first two principle components with eigenvalues of 8.47 and 1.62 respectively.*
+*Using the total variance explained by a given number of principal components, we can use a total explained cutoff of 80%. Under this threshold, we would need two principal components to capture at least 80% of the total variance. In this case, the first principal component explains 71% of the total variance and 12% for the second principal component for a total of 83%. Using the eigenvalues > 1 rule, we would retain only the first two principal components, with eigenvalues of 9.21 and 1.60, respectively.*
+
+### Scree plots
+
+We will now apply scree plots to display the eigenvalues of each principal component. We will also apply parallel analysis to decide how many components to retain.
 
 ```{r}
 screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
           main = "Scree Plot of Raw WB Data")
 ```
-*Using the scree plot elbow method, there is an apparent elbow at the second principle component (there also looks to be one at the third but this is less clear). Using the second principle component as the cutoff, we would only retain one principle component according to the scree plot.*
+*Using the scree plot elbow method, there is an apparent elbow at the first principal component transitioning to the second principal component, which indicates that PC1 explains the majority of the variance in the data and variance in PC2 decreases significantly. Although the curve flattens after PC2, there appears to be a subtle change in slope near PC3, but it is not as distinct.* 
+
+*Using the second principle component as the cutoff, we would only retain one principle component according to the scree plot.*
 
 ```{r}
 source("http://reuningscherer.net/multivariate/r/parallel.R.txt")
 parallelplot(pc1)
 ```
-*Since parallel analysis assumes that the data is suitable for PCA, we can use it as a valid method to determine the number of principle components to keep - after transforming the data, we have linear relationships between all of our variables and also normality (although this isn't a necessary condition for PCA). Based on parallel analysis, we should retain 2 principle components, since the cutoff is right below the second component.*
+*Since parallel analysis assumes that the data is suitable for PCA, we can use it as a valid method to determine the number of principle components to keep. After transforming the data, we have linear relationships between all of our variables and also normality (although this isn't a necessary condition for PCA). Based on parallel analysis, we should retain 2 principle components, since the cutoff is right below the second component.*
+
+### Interpretation of PCA
 
 ```{r}
+# principal component loadings to indicate how much of each original var.
+# contributes to each principal component
 round(pc1$rotation,2)
 ```
-*Based on our analysis, we decided to retain only the first 2 principle components. The first component appears to be a general measure of overall well being and development: the positive loadings for the first component that are significant include variables such as HDI, life expectancy and mean years of schooling, which are all important benchmarks when judging the development of a country. On the other hand, the loadings that are equally large in magnitude but negative include the inequality level, overall loss, gender inequality and the mortality rate. These loadings are indicative of lesser developed countries which is why they are opposite in sign to the positive loadings, which are the signs of development. Our second principle component describes gender equality. There are three variables with large loadings in magnitude: the gender development index, participation in the female labor force and participation in the male labor force. These variables all share relationships with gender and measure the overall gender equality of countries - looking more holistically using the gender inequality index in addition to the employment levels of males vs females.*
+*Based on our analysis, we decided to retain only the first 2 principal components. The first component appears to be a general measure of overall well-being and development. Significant positive loadings for this component include variables such as HDI, life expectancy, and mean years of schooling, all of which are important benchmarks for assessing a country's development. On the other hand, the loadings that are equally large in magnitude but negative include the inequality level, overall loss, gender inequality and the mortality rate. These negative loadings are indicative of lesser developed countries, which is why they have opposite signs to the positive indicators of development.*
+
+*Our second principle component describes gender equality. It is characterized by large loadings for three key variables: the gender development index, participation in the female labor force and participation in the male labor force. These variables share a common relationship with gender equality and provide a holistic measure when considered alongside the gender inequality index and the differences in employment levels between males and females.*
+
+### Visualizations and Validations of PCA Results
+
+We want to see how observations of countries are distributed among the two principal components and identify outliers, which deviate from multivariate normal distributions of scores.
+
+We also create a biplot to help understand how the observations and variables interact in a reduced dimensional space. 
 
 ```{r}
+
 source("http://reuningscherer.net/multivariate/r/ciscoreplot.R.txt")
 
 ciscoreplot(pc1, c(1, 2), data[, 1])
 
 ```
-*There don't appear to be any clear trends/groupings in our score plot of the first and second principle component. There are 2 outliers in our 95% confidence ellipse of our 2 retained components - the countries Yemen and Madagascar. Madagascar appears to fall outside of the ellipse in the direction of the second component only slightly (this is in large part due to it's orientation in relation to the first principle component) and Yemen lies outside the ellipse in the direction of the second principle component by a good margin. Our interpretations of the 95% confidence ellipse are valid given we have a multivariate normal distribution in our dataset as shown in the chi-square quantile plot and is a necessary condition for interpreating the ellipse.*
+*The score plot visualizes the distribution of observations based on the first and second principal components. It includes a 95% confidence ellipse to identify outliers and confirm the distribution of points. There don't appear to be any clear trends/groupings in our score plot of the first and second principle component.*
+
+*There are 2 outliers in our 95% confidence ellipse of our 2 retained components: Yemen and Madagascar. Madagascar appears to fall outside of the ellipse in the direction of the second component only slightly (this is in large part due to it's orientation in relation to the first principle component). In contrast, Yemen lies outside the ellipse in the direction of the second principle component by a good margin, indicating a more significant deviation in the factors captured by PC2, possibly related to gender equality.*
+
+*Our interpretations of the 95% confidence ellipse are valid given we have a multivariate normal distribution in our dataset as shown in the chi-square quantile plot and is a necessary condition for interpreting the ellipse.*
 
 ```{r}
 biplot(pc1, choices = c(1, 2), pc.biplot = TRUE, cex = 0.7)
 ```
-*The biplot shows the distribution of countries based on their principle component scores in relation to the first and second principle component.The arrows show the strength of a variables contribution (the magnitude) while the direction underscores how the variable contributed. Similar to the plot above, there doesn't appear to be many trends between the principal component scores of the countries. However, the arrows re-inforce our interpretation of the principle components, as the second principal component is comprised mainly of the female/male labor force and gender development index (the arrows point up) while the first component is comprised of development variables such as GNI per capita or mortality rate, which point in opposite directions since they are negatively correlated. Likewise, when the arrows are perpendicular, it's reflected by a smaller loading in defining that principle component as we saw in the data.*
+*The biplot shows the distribution of countries based on their principal component scores for the first and second principle components. The arrows indicate the strength of a variable's contribution (magnitude) while the direction underscores how the variable contributed to the components. Similar to the score plot above, there doesn't appear to be many distinct trends between the principal component scores of the countries. However, the arrows reinforce our interpretation of the principle components. The second principal component is primarily influenced by variables such as the female/male labor force and gender development index (the arrows point up). On the other hand, the first component is influenced by development variables such as GNI per capita and the mortality rate, which point in opposite directions since they are negatively correlated. Likewise, when the arrows are perpendicular, this reflects smaller loadings for those variables in defining that particular principal component, as observed in the data.*
 
-*Based on our findings, we were able to utilize PCA since our variables had strong correlations, a linear relationship and were normally distributed (although this point itself isn't necessary for PCA it allowed us to use methods like parallel anaylsis). We were able to capture approximately 78% of the total variance using two principle components which we derived using a varitey of methods including a scree plot, parallel analysis and eigenvalue criteria. The first principle component captures the overall development of a country with variables that captured high levels of developing having a relatively large and positive loading while variables that demonstrated lower development had large and negative loadings. In contrast, the second principle component focused solely on gender equality and included variables relating to female/male labor employment and the gender inequality index. Finally, we created a score plot (with 95% confidence interval ellipse) and a biplot to analyze our results; in the 95% confidence interval ellipse, there were 2 outliers which is unsurprising given we had over 150 observations and the deviation for one of those outliers was negligable in the direction of the second component. Lastly, the biplot validated our interpretations of the principle components and was valid given we verified the multinormality of our data's distribution.*
+*Based on our findings, we were able to utilize PCA because our variables had strong correlations, linear relationships, and were normally distributed (although this point itself isn't necessary for PCA it allowed us to use methods like parallel anaylsis). We were able to capture approximately 78% of the total variance using two principal components, derived through various methods including a scree plot, parallel analysis, and the eigenvalue > 1 criteria. The first principle component captures the overall development of a country, with development-related variables showing large positive loading, while variables indicative of lower development had large negative loadings. In contrast, the second principal component focuses solely on gender equality, driven by variables relating to female/male labor employment and the gender inequality index.*
+
+*Finally, we created a score plot (with 95% confidence interval ellipse) and a biplot to analyze our results. In the 95% confidence interval ellipse, there were 2 outliers which is unsurprising given we had over 150 observations and the deviation for one of those outliers was negligable in the direction of the second component. The biplot validated our interpretations of the principal components and was appropiate for analysis, given that we verified the multivariate normality of the data's distribution.*
 
