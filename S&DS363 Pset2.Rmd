@@ -205,9 +205,15 @@ summary.aov(data.manova)
 *A wilks lambda closer to 0 suggests greater seperation between groups across the predictor variables we used. Our wilks lambda of 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05 and suggests that there is a statistically significant difference in the multivariate means between countries in LAC and ECA.*
 
 ```{r}
+lda_scores <- predict(hdi_lda)$x
+anova(lm(lda_scores[,1] ~ data$Region))  
+anova(lm(lda_scores[,2] ~ data$Region))
+anova(lm(lda_scores[,3] ~ data$Region))
+anova(lm(lda_scores[,4] ~ data$Region))
+anova(lm(lda_scores[,5] ~ data$Region))
 hdi_lda
 ```
-*Of our 5 discriminant functions, the first and second functions explain 62.49% and 33.56% of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
+*Of our 5 discriminant functions, the first and second discriminant function are statistically significant (using stepwise testing for their significance) with p-values 2.2e-16 and 2.698e-15 respectively, which are less than our alpha of 0.05. These two discriminant functions explain 62.49% and 33.56% of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
 
 ```{r}
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
