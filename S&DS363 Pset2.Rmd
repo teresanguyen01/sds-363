@@ -1,0 +1,296 @@
+---
+title: "S&DS363 Pset2"
+output: html_document
+date: "2025-02-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
+
+# Based on going through the Kaggle dataset and choosing the most relevant features
+data <- data[, c(
+  "Country",
+  "UNDP.Developing.Regions",
+  "HDI.Rank..2021.",
+  "Human.Development.Index..2021.",
+  "Life.Expectancy.at.Birth..2021.",
+  "Mean.Years.of.Schooling..2021.",
+  "Gross.National.Income.Per.Capita..2021.",
+  "Gender.Development.Index..2021.",
+  "Coefficient.of.human.inequality..2021.",
+  "Overall.loss......2021.",
+  "Gender.Inequality.Index..2021.",
+  "Maternal.Mortality.Ratio..deaths.per.100.000.live.births...2021.",
+  "Adolescent.Birth.Rate..births.per.1.000.women.ages.15.19...2021.",
+  "Labour.force.participation.rate..female....ages.15.and.older...2021.",
+  "Labour.force.participation.rate..male....ages.15.and.older...2021.",
+  "Carbon.dioxide.emissions.per.capita..production...tonnes...2021."
+)]
+
+# rename for better readability
+colnames(data) <- c(
+  "Country",
+  "Region",
+  "HDI_Rank_2021",
+  "HDI_2021",
+  "Life_Expectancy_2021",
+  "Mean_Years_Schooling_2021",
+  "GNI_Per_Capita_2021",
+  "Gender_Dev_Index_2021",
+  "Human_Inequality_Coeff_2021",
+  "Overall_Loss_2021",
+  "Gender_Inequality_Index_2021",
+  "Maternal_Mortality_Rate_2021",
+  "Adolescent_Birth_Rate_2021",
+  "Female_Labour_Force_2021",
+  "Male_Labour_Force_2021",
+  "CO2_Emissions_percapita_2021"
+)
+
+# removes all rows in the data object that contain any missing (NA) values
+# our data frame should only include complete cases 
+data <- data[complete.cases(data) & data$Region != "", ]
+table(data$Region)
+names(data)
+
+```
+```{r}
+cqplot <- function(data1, main) {
+  library(car)  # Load the car package for qqPlot function
+  
+  center <- colMeans(data1)  
+  cov_matrix <- cov(data1)   
+  
+  mahalanobis_dist <- mahalanobis(data1, center, cov_matrix)
+  
+  theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(data1))
+  
+  qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
+         main = main,
+         xlab = "Theoretical Quantiles",
+         ylab = "Observed Mahalanobis Distances")
+}
+
+columns <- c(4, 5, 7, 11, 15)
+
+par(mfrow = c(1,2), pty = "s", cex = 0.8)
+cqplot(data[data$Region == "AS", columns], main = "Asia (AS)")
+cqplot(data[data$Region == "EAP", columns], main = "East Asia & Pacific (EAP)")
+cqplot(data[data$Region == "ECA", columns], main = "Europe & Central Asia (ECA)")
+cqplot(data[data$Region == "LAC", columns], main = "Latin America & the Caribbean (LAC)")
+cqplot(data[data$Region == "SA", columns], main = "South Asia (SA)")
+cqplot(data[data$Region == "SSA", columns], main = "Sub-Saharan Africa (SSA)")
+par(mfrow = c(1,1))
+
+```
+*Based on the chi-square quantile plots for each region: AS, EAP, ECA, LAC,  SA ,SSA: the data roughly follows a linear relationship and are contained within the boundary lines. This suggests that, for the most part, our data is multivariate normal in all groups. There does appear to be more deviations from normality at upper quartiles, such as for LCA but they are still within the bounds.*
+
+```{r}
+
+region_pairs <- list(
+  c("AS", "EAP"),
+  c("ECA", "LAC"),
+  c("SA", "SSA")
+)
+
+for (pair in region_pairs) {
+  
+  filtered_data <- data[data$Region %in% pair, ]
+  
+  filtered_data$Region_Factor <- as.numeric(as.factor(filtered_data$Region))
+  
+  plot(filtered_data[, columns],
+       col = filtered_data$Region_Factor + 2,  
+       pch = filtered_data$Region_Factor + 15, 
+       cex = 1.2,
+       main = paste(pair[1], "vs", pair[2]))  
+
+}
+                          
+```
+*Based on this plot, the variables we chose appear to be good discriminators as the relationship between the 2 groups of each of these variables tends to have a clear direction of deviation, which suggests stronger results when using discriminant analysis.*
+
+```{r}
+print("Covariance Matrix for AS")
+cov_as <- cov(data[data$Region == "AS", columns])
+print(cov_as)
+
+print("Covariance Matrix for EAP")
+cov_eap <- cov(data[data$Region == "EAP", columns])
+print(cov_eap)
+
+print("Covariance Matrix for ECA")
+cov_eca <- cov(data[data$Region == "ECA", columns])
+print(cov_eca)
+
+print("Covariance Matrix for LAC")
+cov_lac <- cov(data[data$Region == "LAC", columns])
+print(cov_lac)
+
+print("Covariance Matrix for SA")
+cov_sa <- cov(data[data$Region == "SA", columns])
+print(cov_sa)
+
+print("Covariance Matrix for SSA")
+cov_ssa <- cov(data[data$Region == "SSA", columns])
+print(cov_ssa)
+
+print("Ratio of Largest to Smallest Covariance Elements for AS vs EAP")
+cov_rat_as_eap <- cov_as / cov_eap
+cov_rat_as_eap[abs(cov_rat_as_eap) < 1] <- 1 / (cov_rat_as_eap[abs(cov_rat_as_eap) < 1])
+print(round(cov_rat_as_eap, 1))
+
+print("Ratio of Largest to Smallest Covariance Elements for ECA vs LAC")
+cov_rat_eca_lac <- cov_eca / cov_lac
+cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1] <- 1 / (cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1])
+print(round(cov_rat_eca_lac, 1))
+
+print("Ratio of Largest to Smallest Covariance Elements for SA vs SSA")
+cov_rat_sa_ssa <- cov_sa / cov_ssa
+cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1] <- 1 / (cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1])
+print(round(cov_rat_sa_ssa, 1))
+
+print("Box's M statistic for all regions")
+boxM_result <- boxM(data[, columns], data$Region)
+print(boxM_result)
+
+```
+*Looking at our covariance matrices and the ratio of the largest to smallest elements of these entries, our covariance matrices seem to be pretty similar considering the ratio of our entries are mostly all less than 4. However, Box's M-test gave us a p-value of less than 2.2e-16, which suggests that are covariance matrices are statistically significantly different. One likely reason for this result is our sample size (we have over 80 total samples), as indicated by our large number of degrees of freedom - 75. There are large covariance ratios in my matrix, which does suggest that we do not have multi-variate normality. Taking the log transformations for our variables still yielded large ratios, which violate our assumption of multivariate normality.*
+
+
+```{r}
+library(MASS)
+
+hdi_lda <- lda(data[, columns], grouping = data$Region, priors = c(0.5, 0.5))
+hdi_lda
+
+lda_acc <- round(sum(diag(prop.table(ctraw))), 2)
+print(paste("LDA Accuracy:", lda_acc))
+```
+*We can try to use LDA since our groups have roughly the same covariance matrix. The overall accuracy of LDA when it comes to classification is approximately 0.83 for the given variables. However, quadratic discriminant analysis may be more fitting given that Box's test showed that our covariance matrices are statistically different.*
+
+```{r}
+(hdi.disc <- qda(data[, columns], grouping = data$Region))
+
+ctrawQ <- table(data$Region, predict(hdi.disc)$class)
+round(sum(diag(prop.table(ctrawQ))),2)
+```
+*Using QDA, we can determine the group means for each of our variables and achieve a prediction accuracy of 0.8, which is slightly lower than LDA. However, this may be more fitting given we do not fulfill the condition of perfectly similar covariance matrices.*
+
+```{r}
+library(klaR)  # Load klaR package for stepclass()
+
+stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + GNI_Per_Capita_2021 + 
+                          Gender_Inequality_Index_2021 + Male_Labour_Force_2021, 
+                          data = data, method = "qda", direction = "both", fold = nrow(data))
+
+stepwise_lda
+
+```
+*Using step wise, QDA is also another valid method that identified the key discriminators being Gender Inequality Index and Life Expectancy. The accuracy rate, however, is slightly lower than QDA at 0.6306. Under the assumption that our data of groups is not multi-variate normal, QDA had the highest prediction accuracy overall.*
+
+```{r}
+data.manova <- manova(as.matrix(data[, columns]) ~ data$Region)
+summary.manova(data.manova, test = "Wilks")
+summary.aov(data.manova)
+```
+
+*A wilks lambda closer to 0 suggests greater seperation between groups across the predictor variables we used. Our wilks lambda of 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05 and suggests that there is a statistically significant difference in the multivariate means between countries in LAC and ECA.*
+
+```{r}
+hdi_lda
+```
+*Of our 5 discriminant functions, the first and second functions explain 62.49% and 33.56% of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
+
+```{r}
+ctrawQ <- table(data$Region, predict(hdi.disc)$class)
+ctrawQ
+round(sum(diag(prop.table(ctrawQ))),2)
+
+qda_cv_pred <- qda(data[, columns], grouping = data$Region, CV = TRUE)
+ctCVQ <- table(data$Region, qda_cv_pred$class)
+ctCVQ
+round(sum(diag(prop.table(ctCVQ))),2)
+```
+*The raw classification accuracy was 79% and 62% for the cross-validation accuracy. Countries in SSA were mostly likely to be correctly identified. Moreover, the drop in accuracy from the raw method to cross validation suggests overfitting in our QDA since our model may fit more noise.*
+
+```{r}
+print("Raw (Unstandardized) Coefficients")
+round(hdi_lda$scaling,2)
+
+print("Normalized Coefficients")
+round(hdi_lda$scaling/sqrt(sum(hdi_lda$scaling^2)),2)
+
+print("Standardized Coefficients")
+hdi_lda_standardized <- lda(scale(data[, columns]), grouping = data$Region)
+print(round(hdi_lda_standardized$scaling, 2))
+```
+*Looking at our standardized coefficients HDI, Life expectancy, and Gender Inequality appear to be our stronger coefficients while GNIpc and male labor force are weaker. This follows our univariate comparisons of our means across groups where although GNIpc and male labor force were statistically siginificant, they both had F values that were much smaller relative to our other three coefficients. When looking at the magnitude of the coefficients for our discriminant function, gender inequality has the largest coefficient overall in LD2 (as well as large coefficients in LD5 and LD1), HDI has relatively large coefficients in LD3 and LD5, and life expectancy has large coefficients in LD2 and LD3.*
+
+```{r}
+lda_scores <- predict(hdi_lda)$x
+
+# Extract unique region names for plotting
+region_names <- unique(data$Region)
+
+# Generate the score plot
+plot(lda_scores[,1], lda_scores[,2], type = "n",
+     main = "LDA Score Plot for HDI Data",
+     xlab = "LDA Axis 1", ylab = "LDA Axis 2")
+
+# Loop through each region to plot points with different colors and symbols
+for (i in 1:length(region_names)) {
+  points(lda_scores[data$Region == region_names[i], 1], 
+         lda_scores[data$Region == region_names[i], 2], 
+         col = i + 1, pch = 15 + i, cex = 1.2)
+}
+
+# Add a legend to distinguish groups
+legend("topright", legend = region_names, 
+       col = c(2:(length(region_names) + 1)), 
+       pch = c(15:(15 + length(region_names))))
+```
+*Countries in Sub Saharan Africa (SSA) appear to differentiate themselves from other regions along LD1 (x axis) while Europe and Central Asia is clustered distinctly in the upper left corner, primarily differentiated along LD2. The other four regions - East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC) have considerable overlap suggesting that these regions share similar features (in regards to LD1 and LD2). When looking at LD1, SSA appears to separate themselves based on HDI, Life Expectancy and Gender Inequality while ECA differentiates itself primarily based on life expectancy and gender inequality. Nevertheless, the groups in the center have outliers (especially the Americas), in which they are not associated with the general trends.*
+
+```{r}
+library(klaR)
+data$Region <- as.factor(data$Region)
+    
+partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021, data = data, method = "lda")
+
+```
+*Looking at the partition plot, we can see more clearly how countries in SSA and in ECA distinguish themselves while the remaining regions overlap significantly, which suggests that they are less differentiated based on these two variables. This validates our conclusions from the previous problem since Gender Inequality and Life Expectancy are significant coefficients for both LD1 and LD2 in the previous analysis. SSA differentiates itself in the bottom right corner while ECA occupies the top left of the graph.*
+
+```{r}
+# Define training data
+train_X <- data[, c("HDI_2021", "Life_Expectancy_2021")]
+train_y <- as.factor(data$Region)
+
+# Generate a grid of points for decision boundary
+x_range <- seq(min(train_X[,1]), max(train_X[,1]), length.out = 100)
+y_range <- seq(min(train_X[,2]), max(train_X[,2]), length.out = 100)
+grid <- expand.grid(HDI_2021 = x_range, Life_Expectancy_2021 = y_range)
+
+# Perform KNN classification
+knn_pred <- knn(train = train_X, test = grid, cl = train_y, k = 5)
+
+# Convert predictions to a data frame for plotting
+grid$Region <- knn_pred
+
+# Create decision boundary plot
+ggplot(data, aes(x = HDI_2021, y = Life_Expectancy_2021, color = Region)) +
+  geom_point() +
+  geom_tile(data = grid, aes(fill = Region), alpha = 0.3) +
+  theme_minimal() +
+  labs(title = "KNN Classification (k = 5)", x = "HDI_2021", y = "Life Expectancy")
+
+
+```
+*K-Nearest Neighbors creates classification based on the distance of the nearest neighbors (k=5 in our case). The color of the dot corresponds to its actual classification while the tile represents the predicted region. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, which suggests points with low life expectancy and low HDI are more likely to be classified as SSA. Most of the other regions are clustered together, which suggests that HDI and Life Expectancy are less differentiated among other regions. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
