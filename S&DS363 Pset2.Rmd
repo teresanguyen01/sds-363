@@ -205,15 +205,23 @@ summary.aov(data.manova)
 *A wilks lambda closer to 0 suggests greater seperation between groups across the predictor variables we used. Our wilks lambda of 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05 and suggests that there is a statistically significant difference in the multivariate means between countries in LAC and ECA.*
 
 ```{r}
-lda_scores <- predict(hdi_lda)$x
-anova(lm(lda_scores[,1] ~ data$Region))  
-anova(lm(lda_scores[,2] ~ data$Region))
-anova(lm(lda_scores[,3] ~ data$Region))
-anova(lm(lda_scores[,4] ~ data$Region))
-anova(lm(lda_scores[,5] ~ data$Region))
+lda_scores <- predict(hdi_lda)$x 
+
+# MANOVA with all 5 discriminant functions
+lda_manova_5 <- manova(lda_scores ~ data$Region)
+summary(lda_manova_5, test = "Wilks")  
+
+# MANOVA with only the last 4 discriminant functions
+lda_manova_4 <- manova(lda_scores[, 2:5] ~ data$Region)
+summary(lda_manova_4, test = "Wilks") 
+
+# MANOVA with only the last 3 discriminant functions
+lda_manova_3 <- manova(lda_scores[, 3:5] ~ data$Region)
+summary(lda_manova_3, test = "Wilks")  
+
 hdi_lda
 ```
-*Of our 5 discriminant functions, the first and second discriminant function are statistically significant (using stepwise testing for their significance) with p-values 2.2e-16 and 2.698e-15 respectively, which are less than our alpha of 0.05. These two discriminant functions explain 62.49% and 33.56% of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
+*Of our 5 discriminant functions, the first and second discriminant function are statistically significant. We used a stepwise Wilks lambda test where we first tested the significance of all 5 discriminant functions, which was statistically significant with a p-value of 2.2e-16. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statsitically significant with a p-value of 9.852e-11. However, testing the last 3 discriminant functions gave us a p-value of 0.6131, which is higher than our alpha of 0.05 and means we fail to reject the null hypothesis that at least one discriminant function is significant. These two significant discriminant functions explain 62.49% and 33.56% respectively of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
 
 ```{r}
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
