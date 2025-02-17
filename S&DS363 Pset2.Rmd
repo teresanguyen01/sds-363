@@ -270,7 +270,7 @@ for (pair in region_pairs) {
 }
                           
 ```
-*The matrix plots show that the selected variables serve as strong discrminators between the two groups. Many variables show a clear direction of deviation, which suggests stronger results when using discriminant analysis. However, there are some overlaps between the groups that are visible in certain pairs, which may impact performance. Based on these results, applying QDA should be good, and we will also use Wilks Lambda for best feature selection as well.*
+*The matrix plots show that the selected variables serve as strong discriminators between the two groups. Many variables show a clear direction of deviation, which suggests stronger results when using discriminant analysis. However, there are some overlaps between the groups that are visible in certain pairs, which may impact performance. Based on these results, applying QDA should be good, and we will also use Wilks Lambda for best feature selection as well.*
 
 ### Discriminant Analysis
 
@@ -289,7 +289,7 @@ lda_acc <- round(sum(diag(prop.table(ctraw))), 2)
 print(paste("LDA Accuracy:", lda_acc))
 
 ```
-*LDA was applied since our groups have relatively similar covariance structures.The overall accuracy of LDA when it comes to classification is approximately 0.73 for the given variables, showing that the model was performing reasonably well. However, misclassifications are prevalent, particularly for AS (4/9 = 44%), EAP (1/13 = 8%), and SA (2/8 = 25%), which suggests overlapping feature distributions among these regions. Regions like ECA (13/16 = 81.25%), LAC (23/25 = 92%), and SSA (38/40 = 95%) had high accuracy. However, Box's M test showed that our covariance matrices are statistically different, suggesting that linear discrminant analysis' assumption of equal covariances does not hold. Quadratic discriminant analysis may be more fitting given that it allows for different covariance matrices.*
+*LDA was applied since our groups have relatively similar covariance structures.The overall accuracy of LDA when it comes to classification is approximately 0.73 for the given variables, showing that the model was performing reasonably well. However, misclassifications are prevalent, particularly for AS (4/9 = 44%), EAP (1/13 = 8%), and SA (2/8 = 25%), which suggests overlapping feature distributions among these regions. Regions like ECA (13/16 = 81.25%), LAC (23/25 = 92%), and SSA (38/40 = 95%) had high accuracy. However, Box's M test showed that our covariance matrices are statistically different, suggesting that linear discriminant analysis' assumption of equal covariances does not hold. Quadratic discriminant analysis may be more fitting given that it allows for different covariance matrices.*
 
 #### Quadratic Discrminant Analysis 
 
@@ -450,7 +450,7 @@ legend("topright", legend = region_names,
 
 *Countries in Sub Saharan Africa (SSA) stands out significantly along LD1 (x-axis), suggesting that this region is well-differentiated from others. On the other hand, Europe and Central Asia (ECA) forms a distinct cluster in the upper left corner, primarily separated along LD2 (y-axis), which indicates that the ECA is differentiated from other regions primarily due to variations in Life Expectancy and Gender Inequality Index.*
 
-*The other four regions-East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC)-have considerable overlap. This suggests that these regions share similar features concerning LD1 and LD2, making it more difficult to distinguish them based on these two dimensions alone, meaning that vaariation exists and these regions may have similar economic, social, or demographic structures in relation to the predictor variables.*
+*The other four regions-East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC)-have considerable overlap. This suggests that these regions share similar features concerning LD1 and LD2, making it more difficult to distinguish them based on these two dimensions alone, meaning that variation exists and these regions may have similar economic, social, or demographic structures in relation to the predictor variables.*
 
 *Additionally, when looking at LD1, SSA appears to separate itself primarily based on HDI, Life Expectancy, and the Gender Inequality Index, while ECA differentiates itself along LD2, driven largely by Life Expectancy and Gender Inequality. Furthermore, there are outliers, such as in the Americas, where some observations deviate from the main cluster, suggesting that certain countries in this group show unique features that differ from the general trends of their respective regions.*
 
@@ -500,6 +500,6 @@ ggplot(data, aes(x = HDI_2021, y = Life_Expectancy_2021, color = Region)) +
 
 ```
 
-*K-Nearest Neighbors creates classification based on the distance of the nearest neighbors (k=5 in our case). In the plot, the color of each dot corresponds to the actual classification of the region, while the background grid represents the predicted classification for different areas of the feature space. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, indicating that countries with lower Human Development Index (HDI) and life expectancy are predominantly classified as SSA. This aligns with our prior analyses showing that SSA tends to have lower values for these indicators compared to other regions.*
+*In the plot, the color of each dot corresponds to the actual classification of the region, while the background grid represents the predicted classification for different areas of the feature space. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, indicating that countries with lower Human Development Index (HDI) and life expectancy are predominantly classified as SSA. This aligns with our prior analyses showing that SSA tends to have lower values for these indicators compared to other regions.*
 
 *For other regions, there is considerable overlap, particularly among East Asia & Pacific (EAP), Europe & Central Asian (ECA), Latin America & the Caribbean (LAC), and South Asia (SA), suggesting that HDI and Life Expectancy alone may not be sufficient enough to classify these groups. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
