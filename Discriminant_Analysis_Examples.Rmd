@@ -1,0 +1,617 @@
+---
+title: "Discriminant Analysis"
+author: "JDRS"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##  Discriminant Analysis in R 
+####  Multivariate Statistics
+####  J. Reuning-Scherer
+
+
+First, some useful packages for performing DA.
+
+```{r}
+library(MASS)
+library(biotools)
+library(klaR)
+library(car)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggExtra)
+library(heplots)
+```
+
+##  Example 1 : Sneetches (actually hook-billed kites F and M)
+
+```{r}
+#get data
+sneetch <- read.csv("http://reuningscherer.net/multivariate/data/Sneetches.csv", header = T, as.is = F)
+head(sneetch)
+names(sneetch)
+```
+
+One of the first things is to compare the wing and tail lengths between groups
+
+```{r}
+
+boxplot(tail ~ Belly, data=sneetch, col = c("red","blue"), horizontal = T, main = "Tail Length by Belly Group")
+
+boxplot(wing ~ Belly, data=sneetch, col = c("red","blue"), horizontal = T, main = "Wing Length by Belly Group")
+
+```
+Next, we should check the assumption of multivariate normality in each group.
+
+```{r}
+#see if data is multivariate normal in EACH GROUP
+
+#examine multivariate normality within each belly group
+par(mfrow = c(1,2), pty = "s", cex = 0.8)
+cqplot(sneetch[sneetch$Belly == "Plain", c("wing","tail")], main = "Plain")
+cqplot(sneetch[sneetch$Belly == "Star", c("wing","tail")], main = "Star")
+par(mfrow = c(1, 1))
+```
+
+
+Let's see if it looks like the two groups occupy different parts of wing/tail length space.
+
+```{r}
+#make scatter plot to look at differences between groups
+plot(sneetch[, c("tail", "wing")], col = sneetch[, 4]*2, pch = (2-sneetch[, 4])*16 + 3, cex = 1.2)
+legend("topleft", c("Plain", "Star"),col = c(2, 4), pch = c(19, 3))
+
+
+```
+
+We assume the covariance matrices are the same between groups.  Visually, this seems a reasonable assumption
+
+```{r}
+#visually compare sample covariance matrices
+print("Covariance Matrix for Plain Bellies")
+cov(sneetch[sneetch$Belly == "Plain", 1:2])
+
+print("Covariance Matrix for Star Bellies")
+cov(sneetch[sneetch$Belly == "Star", 1:2])
+```
+
+
+Let's look at ratios of largest to smallest elements of the covariance matrices - if all less than 4, we're probably OK assuming covariances matrices are similar enough.
+
+```{r}
+plain_cov <- cov(sneetch[sneetch$Belly == "Plain", 1:2])
+star_cov <- cov(sneetch[sneetch$Belly == "Star", 1:2])
+print("Ratio of Largest to Smallest Covariance Elements")
+cov_rat <- star_cov/plain_cov
+cov_rat[abs(cov_rat) < 1] <- 1/(cov_rat[abs(cov_rat) < 1])
+round(cov_rat, 1)
+```
+
+As a final check, we can calculate Box's M statistic - we hope for a large p-value (i.e., we hope to fail to reject the null hypothesis)
+
+```{r}
+boxM(sneetch[,c("tail", "wing")], sneetch$Belly)
+```
+
+It appears that the covariances matrices are similar between groups which is good.  Note that the conversion to a Chi-square stat gives a quite different p-value here than in SPSS.
+
+
+Here are a couple of cool plots which helps visualize the potential power of DA.
+
+```{r}
+scatterplot(wing ~ tail, data = sneetch, groups = sneetch$Belly, smooth = F, regLine = F, ellipse = T)
+
+plot1 <- ggplot(sneetch, aes(tail, wing, colour = Belly)) + geom_point()
+ggMarginal(plot1, groupColour = TRUE, groupFill = TRUE)
+
+
+```
+
+
+Let's run linear discriminant analysis.
+
+```{r}
+sneetch.disc <- lda(sneetch[,1:2], grouping = sneetch$Belly)
+names(sneetch.disc)
+
+#this does the same thing, written as a regression
+(sneetch.disc <- lda(sneetch$Belly ~ sneetch$tail + sneetch$wing, prior = c(.5,.5)))
+
+
+#get univariate and multivariate comparisons
+sneetch.manova <- manova(as.matrix(sneetch[,1:2]) ~ sneetch$Belly)
+summary.manova(sneetch.manova, test="Wilks")
+summary.aov(sneetch.manova)
+
+```
+
+Let's get the various kinds of coefficients.
+
+```{r}
+
+print("Raw (Unstandardized) Coefficients")
+round(sneetch.disc$scaling,2)
+
+print("Normalized Coefficients")
+round(sneetch.disc$scaling/sqrt(sum(sneetch.disc$scaling^2)),2)
+
+print("Standardized Coefficients")
+round(lda(sneetch$Belly ~ scale(sneetch$tail) + scale(sneetch$wing), prior = c(.5,.5))$scaling,2)
+```
+
+Next we get classification Results - note that we have to run lda separately with `CV = TRUE` option if we want both raw and cross-validated results.
+
+**NOTE - both raw and cross-validated results provide posterior probabilities if desired**
+
+```{r}
+# raw results - use the 'predict' function
+ctraw <- table(sneetch$Belly, predict(sneetch.disc)$class)
+ctraw
+
+# total percent correct
+round(sum(diag(prop.table(ctraw))), 2)
+
+#cross-validated results
+sneetch.discCV <- lda(sneetch$Belly ~ sneetch$tail + sneetch$wing, CV = TRUE)
+ctCV <- table(sneetch$Belly, sneetch.discCV$class)
+ctCV
+# total percent correct
+round(sum(diag(prop.table(ctCV))), 2)
+```
+
+NOTE - might make score plot here, but there is only one discriminant function, so we're in one dimension - i.e. make boxplot or other uni-dimensional plot of discriminant score results.
+
+```{r}
+#make boxplot in direction of linear discriminant function
+
+#get the scores
+scores <- as.matrix(sneetch[,1:2])%*%matrix(c(sneetch.disc$scaling), ncol = 1)
+
+boxplot(scores ~ sneetch$Belly, lwd = 2, col = c("red","blue"), horizontal = T, main="Sneetch Discriminant Scores by Belly Type")
+
+#See partitioned space
+names(sneetch)
+partimat(Belly ~ tail + wing, data = sneetch, method = "lda")
+
+```
+
+##  Example 2 : Land Cover Data - Reich.csv
+
+
+Here are the the variables in the dataset:
+
+*  N - concentration of nitrogen
+*  AMASS - - mass-based net photosynthetic capacity
+*  AAREA- area-based net photosynthetic capacity
+*  GS - leaf diffuse conductance at photosynthetic capacity
+*  LSLA - log10 transformation of specific leaf area
+*  FUNCTION - 1=Forbes, 2=Shrub
+*  LOCATION - 1=Colorado, 2=Wisconsin
+*  GROUP - the combination of Function and Location
+    
+We use N, AMASS, AAREA, GS, and LSLA to try to discriminate between forbes and shrubs (i.e., we'll use FUNCTION as our group variable)
+
+```{r}
+#read data
+forbs <- read.csv("http://reuningscherer.net/multivariate/data/reich.csv", header = T, as.is = F)
+names(forbs)
+head(forbs)
+
+#Make FUNCTION categorical
+forbs$CAT <- as.factor(forbs$FUNCTION)
+levels(forbs$CAT) <- c("Forbs", "Shrubs")
+
+```
+
+Check for multivariate normality in each group (Forbs and Shrubs)
+
+
+```{r}
+
+
+#examine multivariate normality within each group
+par(mfrow = c(1,2), pty = "s", cex = 0.8)
+cqplot(forbs[forbs$CAT == "Forbs", 4:8], main = "Forbs")
+cqplot(forbs[forbs$CAT == "Shrubs", 4:8], main = "Shrubs")
+par(mfrow = c(1,1))
+
+```
+
+
+It's helpful to view where the groups live relative to each other two variables at a time (since we can't look in 5-d space)
+
+```{r}
+#make matrix plot to look at differences between groups
+plot(forbs[,4:8], col = forbs[,2]+2, pch = forbs[,2] + 15, cex = 1.2)
+```
+
+Seems like covariance 'footprints' may not be the same between groups
+
+```{r}
+names(forbs)
+#visually compare sample covariance matrices
+print("Covariance Matrix for Forbs")
+cov(forbs[forbs$CAT=="Forbs", 4:8])
+print("Covariance Matrix for Shrubs")
+cov(forbs[forbs$CAT=="Shrubs", 4:8])
+
+#Look at ratios of largest to smallest elements of the covariance matrices - if all less than 4, we're probably OK assuming covariances matrices are similar enough.  Looks like we might have some issues here
+
+forb_cov <- cov(forbs[forbs$CAT=="Forbs", 4:8])
+shrub_cov <- cov(forbs[forbs$CAT=="Shrubs", 4:8])
+print("Ratio of Largest to Smallest Covariance Elements")
+cov_rat <- forb_cov/shrub_cov
+cov_rat[abs(cov_rat) < 1] <- 1/(cov_rat[abs(cov_rat) < 1])
+round(cov_rat, 1)
+
+#calculate Box's M statistic
+boxM(forbs[,4:8], forbs$CAT)
+```
+
+It appears that the covariances matrices are **NOT** the same between groups - so we fit both linear DA and quadratic DA
+
+####Linear DA
+
+```{r}
+#run linear discriminant analysis.  we use equal prior for starters
+(forb.disc <- lda(forbs[, 4:8], grouping = forbs$CAT, priors = c(.5, .5)))
+
+#get univarite and multivariate comparisons
+forb.manova <- manova(as.matrix(forbs[, 4:8]) ~ forbs$CAT)
+summary.manova(forb.manova, test = "Wilks")
+summary.aov(forb.manova)
+```
+Let's get the various kinds of coefficients.
+
+```{r}
+
+print("Raw (Unstandardized) Coefficients")
+round(forb.disc$scaling,2)
+
+print("Normalized Coefficients")
+round(forb.disc$scaling/sqrt(sum(forb.disc$scaling^2)),2)
+
+print("Standardized Coefficients")
+round(lda(scale(forbs[, 4:8]), grouping = forbs$CAT, priors = c(.5, .5))$scaling, 2)
+```
+
+Classification Results - note have to run lda separately with `CV = TRUE` option if you want both raw and cross-validated results
+
+```{r}
+# raw results
+(ctraw <- table(forbs$CAT, predict(forb.disc)$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctraw))), 2)
+
+#cross validated results
+forb.discCV <- lda(forbs[,4:8], grouping = forbs[,2], CV = TRUE)
+(ctCV <- table(forbs$CAT, forb.discCV$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctCV))),2)
+```
+
+**NOTE** - might make score plot here, but only one discriminant function, so we're in one dimension - i.e. make boxplot or other uni-dimensional plot make boxplot in direction of linear discriminant function.
+
+```{r}
+#get the scores - matrix product of original variables with DA coefficients
+scores <- as.matrix(forbs[, 4:8])%*%matrix(c(forb.disc$scaling), ncol = 1)
+
+boxplot(scores ~ forbs$CAT, lwd = 3, col = c("red","blue"), horizontal = T, main = "Forbs Discriminant Scores by Function", ylab = "Function")
+```
+
+
+####Quadratic DA (i.e. assume UNEQUAL covariance matrices)
+
+```{r}
+#run quadratic discriminant analysis - NOTE we don't get coefficients in this case because we're no longer doing a linear rotation of space - we're doing a quadratic partition of space!  Also, note this is NOT using equal priors.
+
+(forbQ.disc <- qda(forbs[,4:8], grouping = forbs$CAT))
+
+# raw results - more accurate than using linear DA
+ctrawQ <- table(forbs$CAT, predict(forbQ.disc)$class)
+ctrawQ
+
+# total percent correct
+round(sum(diag(prop.table(ctrawQ))),2)
+
+#cross validated results - better than CV for linear DA
+forb.discCVQ <- qda(forbs[,4:8], grouping = forbs[,2], CV = TRUE)
+ctCVQ <- table(forbs$CAT, forb.discCVQ$class)
+ctCVQ
+
+# total percent correct
+round(sum(diag(prop.table(ctCVQ))),2)
+
+
+```
+
+##Stepwise DA (both linear and quadratic)
+
+It may be that we don't need all the variables we're considering.   Try Stepwise DA both linear and quadratic.
+
+Note that the `stepclass()` function uses what is called 'n-fold' cross-validation.   It leaves a random fraction of the data out when calculating the best variables to use.  As a result, you can get DIFFERENT variables chosen each time.   The best way to get consistent results is to use fold=nrow(data).   You can also set a random seed, but this simply means you get the same random choice of variables each time! 
+
+```{r}
+#STEPWISE DA
+par(mfrow = c(1,1))
+#Just FYI, run line below several times
+(step1 <- stepclass(CAT ~ N + AMASS + AAREA + GS + LSLA, data = forbs, method = "lda", direction = "both"))
+
+#Here is leave-one out classification which is relatively stable - keeps only N
+(step1 <- stepclass(CAT ~ N + AMASS + AAREA + GS + LSLA, data = forbs, method = "lda", direction = "both", fold = nrow(forbs)))
+names(step1)
+step1$result.pm
+
+#Do stepwise quadratic DA - keeps N and AMASS
+(step3 <- stepclass(FUNCTION ~ N + AMASS + AAREA + GS + LSLA, data = forbs, method = "qda", direction = 'both', fold = nrow(forbs)))
+
+#plot results in space spanned by choosen variables
+#First, linear DA with N and GS - linear partition of space
+partimat(forbs$CAT ~ N + GS, data = forbs, method = "lda")
+
+#Second, QDA - quadratic partition of space
+partimat(forbs$CAT ~ N + AAREA, data = forbs, method = "qda")
+
+#Note that if all more than two variables, it does all pairs of variables - oddly, N and GS seem to work better than the variables chosen by stepwise QDA!
+partimat(forbs$CAT ~ N + AAREA + GS, data = forbs, method = "qda")
+
+
+```
+
+
+##  Example 3 : Depression Data - Depression.csv.  297 individuals in UCLA study
+
+Here are variables we'll consider:
+
+*  CASES - 1=Clinical Depression, 0=No Clinical Depression
+*  Education (1-7 scale with 7 being the most)
+*  Income (thousands dollars per year)
+*  Health (1-4 scale from Excellent=1 to Poor=4)
+*  Age (in years)
+
+We use Education, Income, Health, and Age to discriminate between depression groups.
+
+```{r}
+#read data
+depress <- read.csv("http://reuningscherer.net/multivariate/data/depression.csv",header=T)
+names(depress)
+
+#keep subset of columns for our use
+depress <- depress[, c("CASES", "AGE", "EDUCAT", "INCOME", "HEALTH")]
+head(depress)
+
+#Make CASES a factor
+depress$CASES <- as.factor(depress$CASES)
+levels(depress$CASES) <- c("No Depression", "Depression")
+
+#How many for each group?
+table(depress$CASES)
+
+
+#examine multivariate normality within each group
+par(mfrow = c(1,2), pty = "s", cex = 0.8)
+cqplot(depress[depress$CASES == "Depression", -1], main = "Depression")
+cqplot(depress[depress$CASES == "No Depression", -1], main = "No Depression")
+par(mfrow = c(1,1))
+
+```
+
+Let's make bivariate scatterplots to get of sense of how groups lie in space. Turns out to be mostly useless.
+
+```{r}
+#make matrix plot to look at differences between groups
+plot(depress[,-1], col = 2*(as.numeric(depress$CASES)), pch = as.numeric(depress$CASES)+15, cex = 1.2)
+
+#compare standard deviations in each group
+sumstats <- round(sqrt(aggregate(depress[,-1], by = list(as.numeric(depress$CASES)), FUN = var)),2)[,-1]
+rownames(sumstats) <- c("No Depression","Depression")
+sumstats
+
+#Get Box M stat - probably useless in this case due to relatively large sample sizes
+boxM(depress[,-1], depress$CASES)
+
+
+```
+
+
+#### Linear discriminant analysis
+
+Note that by default, `lda()` uses unequal priors when running DA.
+
+In this instance, we have almost 5 time as many controls as cases.
+
+```{r}
+
+#Run with equal priors
+depress.disc <- lda(depress[, -1], grouping = depress$CASES, prior = c(.5, .5))
+summary(depress.disc)
+depress.manova <- manova(as.matrix(depress[, -1]) ~ depress$CASES)
+summary.manova(depress.manova, test = "Wilks")
+summary.aov(depress.manova)
+
+```
+
+Classification Results - note have to run lda separately with `CV = TRUE` option if you want both raw and cross-validated results
+
+```{r}
+# raw results
+(ctraw <- table(depress$CASES, predict(depress.disc)$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctraw))), 2)
+
+#cross validated results
+depress.discCV <- lda(depress[, -1], grouping = depress$CASES, prior = c(.5, .5), CV = TRUE)
+(ctCV <- table(depress$CASES, depress.discCV$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctCV))), 2)
+```
+
+**NOTE** - there were almost 5 times as many not depressed subjects as depressed subjects.  Maybe we should try classification with UNEQUAL priors (which is the default).
+
+
+```{r}
+# unequal priors based on sample sizes in each group - just leave out 'priors' option.
+depress.disc <- lda(depress[, -1], grouping = depress$CASES)
+(ctraw <- table(depress$CASES, predict(depress.disc)$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctraw))),2)
+
+#cross validated results
+depress.discCV <- lda(depress[,-1], grouping = depress$CASES, CV = TRUE)
+(ctCV <- table(depress$CASES, depress.discCV$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctCV))),2)
+```
+
+Accuracy is now quite high - of course, we just said nobody is depressed!
+
+
+Maybe we should now try stepwise DA
+
+
+```{r}
+#STEPWISE DA
+names(depress)
+
+#leave-one out classification - keeps only AGE, in which case this is a two-sample T-test!
+(step1 <- stepclass(CASES ~ AGE + EDUCAT + INCOME + HEALTH, data = depress, method = "lda", direction = 'both', fold = nrow(depress)))
+
+#Redo with equal priors:
+(step1 <- stepclass(CASES ~ AGE + EDUCAT + INCOME + HEALTH, data = depress, method = "lda", direction = 'both', prior = c(.5,.5), fold = nrow(depress)))
+
+#Look at partition in AGE/HEALTH space
+partimat(depress$CASES ~ AGE + HEALTH, data = depress, method = "lda")
+
+#Second, QDA - quadratic partition of space
+partimat(depress$CASES ~ AGE + HEALTH, data = depress, method = "qda")
+
+#Actually, both of these plots are pretty dissapointing since Health is really categorical
+
+```
+
+
+##  Example 3 : Fisher Iris Data
+
+
+Note that the Fisher iris data exists as a sample dataset inside of R.  You don't need to import this dataset.   The dataset is simply called `iris`.
+
+Create shape variables and check for multivariate normality
+
+```{r}
+#see if data is multivariate normal in EACH GROUP
+#get online function
+source("http://www.reuningscherer.net/multivariate/R/CSQPlot.r.txt")
+names(iris)
+head(iris)
+
+#create new shape variabes
+iris$SepShape <- log(iris$Sepal.Length/iris$Sepal.Width)
+iris$PetShape <- log(iris$Petal.Length/iris$Petal.Width)
+
+#examine multivariate normality within each group
+par(pty = "s")
+cqplot(iris[iris$Species == 'setosa', 6:7], label = "Setosa")
+cqplot(iris[iris$Species == 'versicolor', 6:7], label = "Versicolor")
+cqplot(iris[iris$Species == 'virginica', 6:7], label = "Virginica")
+```
+
+Next we evaluate equality of covariance matrices by calculating Box's M and making a plot.  Both the footprint of groups and Box's M stat suggest that the covariances matrices are NOT equal.
+
+```{r}
+plot(iris$PetShape, iris$SepShape, col = as.numeric(iris$Species)+1, pch = 19, main = "Fisher Iris Data", ylab = "Sepal Shape", xlab = "Petal Shape")
+legend("topright", col = c(2:4), legend = levels(iris$Species), pch = 19)
+
+#calculate Box's M statistic
+boxM(iris[,c("PetShape","SepShape")], iris$Species)
+#Box's M suggests should use quadratic DA
+
+```
+
+
+#### Linear DA results
+
+```{r}
+#SCORE PLOTS for linear DA
+irislda <- lda(scale(iris[, c("PetShape", "SepShape")]), grouping = iris$Species)
+names(irislda)
+summary(irislda)
+#Calculate scores
+scores <- as.matrix(scale(iris[, c("PetShape", "SepShape")]))%*%matrix(irislda$scaling, ncol = 2)
+
+#NOTE - if use cross-validation option, scores are calculated automatically
+plot(scores[,1], scores[,2], type = "n", main = "Linear DCA scores for IRIS data",
+     xlab = "DCA Axis 1", ylab = "DCA Axis 2")
+
+irisnames <- names(summary(iris[, 5]))
+
+for (i in 1:3){
+  points(scores[iris$Species == irisnames[i], 1],
+         scores[iris$Species == irisnames[i], 2], col = i+1, pch = 15+i, cex = 1.1)
+}
+legend("topright", legend = irisnames, col = c(2:4), pch = c(15, 16, 17))
+
+#NEW
+#Test of significance of resulting discriminant functions
+source("http://www.reuningscherer.net/multivariate/R/discrim.r.txt")
+
+
+#Two inputs required - dataframe with discriminating variabes and vector with group membership
+discriminant.significance(iris[, c("PetShape", "SepShape")], iris$Species)
+
+```
+More useful are the 'space' plots we've already seen
+
+```{r}
+#PLOT Predicted Regions based on two log(shape) variables 
+#LDA
+partimat(Species ~ SepShape + PetShape, data = iris, method = "lda")
+
+```
+
+Accuracy results using LDA
+
+```{r}
+# raw results
+(ctraw <- table(iris$Species, predict(irislda)$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctraw))), 2)
+
+#cross validated results
+irisldaCV <- lda(iris[,c("PetShape","SepShape")], grouping = iris$Species, CV = TRUE)
+(ctCV <- table(iris$Species, irisldaCV$class))
+
+# total percent correct
+round(sum(diag(prop.table(ctCV))), 2)
+
+```
+
+
+
+STEPWISE DA using the original four characteristics - overall much more accurate.
+
+```{r}
+#from klaR help file
+iris.d <- iris[,1:4] # the data 
+iris.c <- iris[,5] # the classes 
+(sc_obj <- stepclass(iris.d, iris.c, "lda", start.vars = "Sepal.Width") )
+plot(sc_obj)
+
+```
+
+
+
+
+
+

@@ -523,7 +523,7 @@ Perform PCA
 pc3 <- prcomp(envatt[complete.cases(envatt), ], scale. = T)
 
 #Here are standard deviations
-round(summary.PCA.JDRS(pc3), 2)
+(round)(summary.PCA.JDRS(pc3), 2)
 
 #Get loadings
 round(pc3$rotation, 2)

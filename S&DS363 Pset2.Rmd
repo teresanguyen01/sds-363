@@ -1,15 +1,36 @@
 ---
-title: "S&DS363 Pset2"
-output: html_document
-date: "2025-02-12"
+title: 'S&DS 363 Problem Set 3: Discrminant Analysis
+author: "Franklin Wu and Teresa Nguyen"
+date: "2025-02-17"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Human Development Index Discriminant Analysis
 
+Discriminant analysis is a statistical technique used to classify observations into predefined groups on predictor variables. In our homework assignment, we will be using discriminant analysis for the human development index.
+
+```{r, warning = FALSE}
+library(MASS)
+library(biotools)
+library(klaR)
+library(car)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggExtra)
+library(heplots)
+```
+
+### Data Cleaning 
+
+Read in Data, choose the columns that best fit our needs, and rename the columns.
 
 ```{r}
 data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
@@ -61,6 +82,13 @@ table(data$Region)
 names(data)
 
 ```
+
+### Analysis of Multivariate Normality and Similar Covariances Matrices
+
+#### Chi-Square Quantile Plots 
+
+We will first create **Chi-Square quantile plots** to evaluate multivariate normality within each group. 
+
 ```{r}
 cqplot <- function(data1, main) {
   library(car)  # Load the car package for qqPlot function
@@ -68,6 +96,7 @@ cqplot <- function(data1, main) {
   center <- colMeans(data1)  
   cov_matrix <- cov(data1)   
   
+  # calculate mahalanobis distances
   mahalanobis_dist <- mahalanobis(data1, center, cov_matrix)
   
   theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(data1))
@@ -80,6 +109,7 @@ cqplot <- function(data1, main) {
 
 columns <- c(4, 5, 7, 11, 15)
 
+# create a plot for each group 
 par(mfrow = c(1,2), pty = "s", cex = 0.8)
 cqplot(data[data$Region == "AS", columns], main = "Asia (AS)")
 cqplot(data[data$Region == "EAP", columns], main = "East Asia & Pacific (EAP)")
@@ -90,34 +120,18 @@ cqplot(data[data$Region == "SSA", columns], main = "Sub-Saharan Africa (SSA)")
 par(mfrow = c(1,1))
 
 ```
-*Based on the chi-square quantile plots for each region: AS, EAP, ECA, LAC,  SA ,SSA: the data roughly follows a linear relationship and are contained within the boundary lines. This suggests that, for the most part, our data is multivariate normal in all groups. There does appear to be more deviations from normality at upper quartiles, such as for LCA but they are still within the bounds.*
+*Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data roughly follows a linear trend, indicating the assumption of multivariate normality holds across all groups. Most observed Mahalanobis distances align well with the theoretical quantities and remain within the confidence bounds.*
+
+*However, there does appear to be more deviations from normality at upper quartiles, such as in LAC and ECA, while some points slightly exceed the theoretical line. While these deviations suggest the presence of outliers or skewedness, they are still within the acceptable limits, so the normality assumption is not strongly violated.*
+
+#### Covariances Matrices - Box's M and Matrices
+
+We then create covariances matrices to see similarity and use the Box's M statistic. The Box's M is used to test equality of entire covariances matrices as equal covariance matrices are an assumption of discriminant analysis.
 
 ```{r}
 
-region_pairs <- list(
-  c("AS", "EAP"),
-  c("ECA", "LAC"),
-  c("SA", "SSA")
-)
-
-for (pair in region_pairs) {
-  
-  filtered_data <- data[data$Region %in% pair, ]
-  
-  filtered_data$Region_Factor <- as.numeric(as.factor(filtered_data$Region))
-  
-  plot(filtered_data[, columns],
-       col = filtered_data$Region_Factor + 2,  
-       pch = filtered_data$Region_Factor + 15, 
-       cex = 1.2,
-       main = paste(pair[1], "vs", pair[2]))  
-
-}
-                          
-```
-*Based on this plot, the variables we chose appear to be good discriminators as the relationship between the 2 groups of each of these variables tends to have a clear direction of deviation, which suggests stronger results when using discriminant analysis.*
-
-```{r}
+library(heplots)
+# covariance matrices for all the regions 
 print("Covariance Matrix for AS")
 cov_as <- cov(data[data$Region == "AS", columns])
 print(cov_as)
@@ -142,39 +156,144 @@ print("Covariance Matrix for SSA")
 cov_ssa <- cov(data[data$Region == "SSA", columns])
 print(cov_ssa)
 
+# ratios
 print("Ratio of Largest to Smallest Covariance Elements for AS vs EAP")
 cov_rat_as_eap <- cov_as / cov_eap
-cov_rat_as_eap[abs(cov_rat_as_eap) < 1] <- 1 / (cov_rat_as_eap[abs(cov_rat_as_eap) < 1])
+cov_rat_as_eap[abs(cov_rat_as_eap) < 1] <- 1 / 
+  (cov_rat_as_eap[abs(cov_rat_as_eap) < 1])
 print(round(cov_rat_as_eap, 1))
 
 print("Ratio of Largest to Smallest Covariance Elements for ECA vs LAC")
 cov_rat_eca_lac <- cov_eca / cov_lac
-cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1] <- 1 / (cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1])
+cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1] <- 1 / 
+  (cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1])
 print(round(cov_rat_eca_lac, 1))
 
 print("Ratio of Largest to Smallest Covariance Elements for SA vs SSA")
 cov_rat_sa_ssa <- cov_sa / cov_ssa
-cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1] <- 1 / (cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1])
+cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1] <- 1 / 
+  (cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1])
 print(round(cov_rat_sa_ssa, 1))
 
+# Box M statistic 
 print("Box's M statistic for all regions")
 boxM_result <- boxM(data[, columns], data$Region)
 print(boxM_result)
 
 ```
-*Looking at our covariance matrices and the ratio of the largest to smallest elements of these entries, our covariance matrices seem to be pretty similar considering the ratio of our entries are mostly all less than 4. However, Box's M-test gave us a p-value of less than 2.2e-16, which suggests that are covariance matrices are statistically significantly different. One likely reason for this result is our sample size (we have over 80 total samples), as indicated by our large number of degrees of freedom - 75. There are large covariance ratios in my matrix, which does suggest that we do not have multi-variate normality. Taking the log transformations for our variables still yielded large ratios, which violate our assumption of multivariate normality.*
+*Looking at our covariance matrices and the ratio of the largest to smallest elements of these entries, our covariance matrices seem to be pretty similar considering the ratio of our entries are mostly all less than 4. However, Box's M-test gave us a p-value of less than 2.2e-16, which suggests that are covariance matrices are statistically significantly different. This is likely dude to our relatively large sample size (over 80 observations) and high degrees of freedom (df = 75), making the test highly sensitive to small deviations.*
 
+#### Covariances Matrices - Testing Out Transformations
+
+```{r}
+library(heplots)
+
+data_log_transformed <- data.frame(data) # Creates a deep copy
+
+log_transform_columns <- c("HDI_2021", "Life_Expectancy_2021", "GNI_Per_Capita_2021", 
+                           "Gender_Inequality_Index_2021", "Male_Labour_Force_2021")
+
+print("Raw Log Determinants (Before Log Transformation)")
+log_dets_before <- c()
+for (region in unique(data$Region)) {
+  cov_matrix <- cov(data_log_transformed[data$Region == region, log_transform_columns])
+  log_det <- log(det(cov_matrix))
+  log_dets_before <- c(log_dets_before, log_det)
+  cat(region, ":", log_det, "\n")
+}
+
+data_log_transformed[log_transform_columns] <- 
+  log(data_log_transformed[log_transform_columns] + 0.001)
+
+
+print("Covariance Matrices After Log Transformation")
+cov_matrices <- list()
+for (region in unique(data$Region)) {
+  cov_matrices[[region]] <- cov(data_log_transformed[data_log_transformed$Region
+                                                     == region, log_transform_columns])
+}
+
+print("Raw Log Determinants (After Log Transformation)")
+log_dets_after <- c()
+for (region in unique(data$Region)) {
+  log_det <- log(det(cov_matrices[[region]]))
+  log_dets_after <- c(log_dets_after, log_det)
+  cat(region, ":", log_det, "\n")
+}
+
+log_det_differences <- max(log_dets_after) - min(log_dets_after)
+print(paste("Max-Min Difference in Log Determinants (After Log Transformation):", 
+            log_det_differences))
+
+print("Box's M statistic for all regions")
+boxM_result <- boxM(data_log_transformed[, log_transform_columns], 
+                    data_log_transformed$Region)
+print(boxM_result)
+
+# Compare sensitivity
+if (log_det_differences < 1) {
+  print("Log determinants are nearly equal. Box's M may be overly sensitive.")
+} else {
+  print("Significant differences in log determinants.")
+}
+
+```
+*The covariance matrices exhibit large ratios, suggesting a violation of multivariate normality. Applying log transformations did not fully correct the issue, as significant differences remain in the log determinants across groups, with a maximum-minimum difference of 8.34.*
+
+*Additionally, Box’s M-test remains highly significant (p-value = 2.081e-13), reinforcing that the covariance matrices are statistically different. While Box’s M-test is known to be sensitive to large sample sizes, the large spread in log determinants suggests that this result reflects true differences rather than mere statistical sensitivity.*
+
+*Since LDA assumes similarity of covariance matrices, it may not be suitable in this case. Given these results, QDA may be a better alternative as it does not assume equal covariances.*
+
+#### Matrix Plots
+
+To determine what our data looks like with two variables at a time. 
+
+```{r}
+
+region_pairs <- list(
+  c("AS", "EAP"),
+  c("ECA", "LAC"),
+  c("SA", "SSA")
+)
+
+for (pair in region_pairs) {
+  
+  filtered_data <- data[data$Region %in% pair, ]
+  
+  filtered_data$Region_Factor <- as.numeric(as.factor(filtered_data$Region))
+  
+  plot(filtered_data[, columns],
+       col = filtered_data$Region_Factor + 2,  
+       pch = filtered_data$Region_Factor + 15, 
+       cex = 1.2,
+       main = paste(pair[1], "vs", pair[2]))  
+}
+                          
+```
+*The matrix plots show that the selected variables serve as strong discrminators between the two groups. Many variables show a clear direction of deviation, which suggests stronger results when using discriminant analysis. However, there are some overlaps between the groups that are visible in certain pairs, which may impact performance. Based on these results, applying QDA should be good, and we will also use Wilks Lambda for best feature selection as well.*
+
+### Discriminant Analysis
+
+#### Linear Discriminant Analysis
 
 ```{r}
 library(MASS)
 
-hdi_lda <- lda(data[, columns], grouping = data$Region, priors = c(0.5, 0.5))
-hdi_lda
+hdi_lda <- lda(data[, log_transform_columns], grouping = data$Region)
+
+ctraw <- table(data$Region, predict(hdi_lda)$class)
+print("Confusion Matrix:")
+print(ctraw)
 
 lda_acc <- round(sum(diag(prop.table(ctraw))), 2)
 print(paste("LDA Accuracy:", lda_acc))
+
 ```
-*We can try to use LDA since our groups have roughly the same covariance matrix. The overall accuracy of LDA when it comes to classification is approximately 0.83 for the given variables. However, quadratic discriminant analysis may be more fitting given that Box's test showed that our covariance matrices are statistically different.*
+*LDA was applied since our groups have relatively similar covariance structures.The overall accuracy of LDA when it comes to classification is approximately 0.73 for the given variables, showing that the model was performing reasonably well. However, misclassifications are prevalent, particularly for AS (4/9 = 44%), EAP (1/13 = 8%), and SA (2/8 = 25%), which suggests overlapping feature distributions among these regions. Regions like ECA (13/16 = 81.25%), LAC (23/25 = 92%), and SSA (38/40 = 95%) had high accuracy. However, Box's M test showed that our covariance matrices are statistically different, suggesting that linear discrminant analysis' assumption of equal covariances does not hold. Quadratic discriminant analysis may be more fitting given that it allows for different covariance matrices.*
+
+#### Quadratic Discrminant Analysis 
+
+We decided to use Quadratic Discrminant analysis as it provides a way to determine group means for each variable and understand how different regions are separated based on their feature distributions. 
 
 ```{r}
 (hdi.disc <- qda(data[, columns], grouping = data$Region))
@@ -182,19 +301,55 @@ print(paste("LDA Accuracy:", lda_acc))
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
 round(sum(diag(prop.table(ctrawQ))),2)
 ```
-*Using QDA, we can determine the group means for each of our variables and achieve a prediction accuracy of 0.8, which is slightly lower than LDA. However, this may be more fitting given we do not fulfill the condition of perfectly similar covariance matrices.*
+
+*The prediction accuracy of QDA is 0.79, which is higher than the prediction accuracy of linear discriminant analysis of 0.73. The improvement suggests that quadratic discriminant analysis is more appropriate as it does not assume equal covariance matrices across groups. As mentioned earlier, the Box's M test showed significant differences in covariance matrices so QDA is most likely capturing the true variance patterns more effectively than LDA. While the accuracy gain isn't too large (0.06), QDA having the higher prediction accuracy and its ability to handle differing covariance structures makes it the better choice.*
+
+#### Stepwise Discriminant Analysis 
+
+Stepwise Linear Discriminant Analysis
 
 ```{r}
 library(klaR)  # Load klaR package for stepclass()
 
-stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + GNI_Per_Capita_2021 + 
-                          Gender_Inequality_Index_2021 + Male_Labour_Force_2021, 
-                          data = data, method = "qda", direction = "both", fold = nrow(data))
+stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + 
+                            GNI_Per_Capita_2021 + 
+                           Gender_Inequality_Index_2021 + 
+                            Male_Labour_Force_2021,
+                           data = data, method = "lda", direction = "both", 
+                          fold = nrow(data))
 
 stepwise_lda
+stepwise_lda$result.pm
+
 
 ```
-*Using step wise, QDA is also another valid method that identified the key discriminators being Gender Inequality Index and Life Expectancy. The accuracy rate, however, is slightly lower than QDA at 0.6306. Under the assumption that our data of groups is not multi-variate normal, QDA had the highest prediction accuracy overall.*
+
+*Using stepwise LDA, gender inequality and life expectancy were the key discriminators and the classification accuracy was 63.96%, still lower than QDA's accuracy of 79%. Because LDA assumes equal covariance matrices and Box's M test confirmed significant covariance differences, the assumptions of LDA may not hold, so LDA would not be a good choice.* 
+
+We will now use quadratic discriminant analysis. 
+
+```{r}
+library(klaR)  # Load klaR package for stepclass()
+
+stepwise_qda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + 
+                            GNI_Per_Capita_2021 + 
+                           Gender_Inequality_Index_2021 + 
+                            Male_Labour_Force_2021,
+                           data = data, method = "qda", direction = "both", 
+                          fold = nrow(data))
+
+stepwise_qda
+
+data$Region <- as.factor(data$Region)
+partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021,
+         data = data, method = "qda", main = "QDA Partition Plot")
+
+
+```
+
+*Using stepwise QDA, we identified the key discriminators being Gender Inequality Index and Life Expectancy for classifying regions. However, the final classification accuracy of stepwise QDA is 63.06%, which is lower than the full QDA's model's accuracy of 79%, suggesting that while these two groups contribute significantly to group separation, removing the other predictors may resulted in information loss, leading to decreased classification performance. Additionally, the apparent error rate of QDA (0.279) is lower than LDA (0.306), showing that QDA is better at separating classes. Since QDA does not assume equal covariance matrices, our data is not multivariate normal, and Box's M test confirmed covariance differences, QDA remains the best model choice over LDA.*
+
+### Wilk's Lambda Test
 
 ```{r}
 data.manova <- manova(as.matrix(data[, columns]) ~ data$Region)
@@ -202,7 +357,9 @@ summary.manova(data.manova, test = "Wilks")
 summary.aov(data.manova)
 ```
 
-*A wilks lambda closer to 0 suggests greater seperation between groups across the predictor variables we used. Our wilks lambda of 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05 and suggests that there is a statistically significant difference in the multivariate means between countries in LAC and ECA.*
+*A Wilks' lambda of approximately 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05, and suggests that there is a statistically significant difference in the multivariate means between the regions. The strongest discriminators are Life Expectancy (p value 2.2e-16 and F-Statistic 34.7) and Gender Inequality Index (p value 2.2e-16 and F-Statistic 29.87), while Male Labor Force Participation is the weakest predictor. Since Wilks' Lamda is closer to 0, it indicates a strong group separation.*
+
+### Discriminant Functions Significance
 
 ```{r}
 lda_scores <- predict(hdi_lda)$x 
@@ -221,19 +378,32 @@ summary(lda_manova_3, test = "Wilks")
 
 hdi_lda
 ```
-*Of our 5 discriminant functions, the first and second discriminant function are statistically significant. We used a stepwise Wilks lambda test where we first tested the significance of all 5 discriminant functions, which was statistically significant with a p-value of 2.2e-16. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statsitically significant with a p-value of 9.852e-11. However, testing the last 3 discriminant functions gave us a p-value of 0.6131, which is higher than our alpha of 0.05 and means we fail to reject the null hypothesis that at least one discriminant function is significant. These two significant discriminant functions explain 62.49% and 33.56% respectively of our data while the remaining 3 each explain less than 5%. In terms of the relative power of each of our functions, the first equation explains 62.49% of the variance in our data and the second equation explains 33.56% of the variance.*
+
+*Of our 5 discriminant functions, the first and second discriminant function are the only ones that were statistically significant, meaning they play a significant role in distinguishing between the groups. To determine this, we conducted a stepwise Wilks' Lamda test, progressively assessing the significance of all five discriminant functions. First, we tested the significance of all five discriminant functions, which yielded a Wilks' Lambda of 0.14243 and a p-value of <2.2e-16, which showed significant separation between groups. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statistically significant with a p-value of 9.852e-11, indicating that at least the first two discriminant functions were contributing meaningfully.*
+
+*However, when we further tested only the last three discriminant functions, the p-value was 0.6131, which is higher than our alpha of 0.05. This means we fail to reject the null hypothesis that at least one discriminant function is significant and all these three functions do not significantly improve group separation. As noted, it is evident that LD1 and LD2 are the primary drivers of group separation, whereas the last three functions add little explanatory power. This shows that reducing the model to just these two significant functions could simplify interpretation without compromising classification accuracy.*
+
+### Regular & Leave-One-Out Classification
 
 ```{r}
+# regular QDA Classification
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
 ctrawQ
 round(sum(diag(prop.table(ctrawQ))),2)
 
+# Leave-One-Out Cross-Validation QDA Classification
 qda_cv_pred <- qda(data[, columns], grouping = data$Region, CV = TRUE)
 ctCVQ <- table(data$Region, qda_cv_pred$class)
 ctCVQ
 round(sum(diag(prop.table(ctCVQ))),2)
 ```
-*The raw classification accuracy was 79% and 62% for the cross-validation accuracy. Countries in SSA were mostly likely to be correctly identified. Moreover, the drop in accuracy from the raw method to cross validation suggests overfitting in our QDA since our model may fit more noise.*
+*The raw classification accuracy was 79%, while the cross-validation accuracy was 62%, indicating a decrease in predictive performance when tested on unseen data. The model performs well on the training data but struggles with generalization, which suggests overfitting, where the model captures noise rather than the true patterns in the data.*
+
+*When analyzing the confusion matrices, SSA had the highest classification accuracy, as most of its observations were correctly classified in both raw and cross-validated results (38 out of 41 in raw and 37 out of 41 in LOOCV). In contrast, regions such as AS, EAP, and LAC had a higher number of misclassifications. Additionally, EAP, LAC, and SA experienced significant accuracy losses, further supporting the overfitting hypothesis.*
+
+*Moreover, the 17% drop in accuracy from the raw method to cross-validation suggests that QDA may be too complex for this dataset, leading to overfitting.*
+
+### Standardized Discriminant Coefficients
 
 ```{r}
 print("Raw (Unstandardized) Coefficients")
@@ -246,7 +416,13 @@ print("Standardized Coefficients")
 hdi_lda_standardized <- lda(scale(data[, columns]), grouping = data$Region)
 print(round(hdi_lda_standardized$scaling, 2))
 ```
-*Looking at our standardized coefficients HDI, Life expectancy, and Gender Inequality appear to be our stronger coefficients while GNIpc and male labor force are weaker. This follows our univariate comparisons of our means across groups where although GNIpc and male labor force were statistically siginificant, they both had F values that were much smaller relative to our other three coefficients. When looking at the magnitude of the coefficients for our discriminant function, gender inequality has the largest coefficient overall in LD2 (as well as large coefficients in LD5 and LD1), HDI has relatively large coefficients in LD3 and LD5, and life expectancy has large coefficients in LD2 and LD3.*
+*Analyzing our standardized coefficients, HDI, Life expectancy, and Gender Inequality appear to be our stronger discriminators while GNI per Capita (GNIpc) and Male Labor Force have weaker contributions. This aligns with our univariate comparisons, where although GNIpc and Male Labor Force were statistically significant, their F-values were lower compared to the other three variables, indicating a weaker impact on group differentiation.*
+
+*When looking at the magnitude of the coefficients for our discriminant functions, gender inequality had the largest coefficient overall in LD, as well as large coefficients in LD5 and LD1. HDI has relatively large coefficients in LD3 and LD5, and life expectancy has large coefficients and strong influence in LD2 and LD3. These results show that socioeconomic and human development indicators play a greater role in distinguishing regions than economic metrics such as GNI per Capita or labor force participation.*
+
+### Score Plots
+
+The LDA Score Plot reveals distinct separation patterns among the regions based on the first two discriminant functions (LD1 and LD2).
 
 ```{r}
 lda_scores <- predict(hdi_lda)$x
@@ -254,7 +430,7 @@ lda_scores <- predict(hdi_lda)$x
 # Extract unique region names for plotting
 region_names <- unique(data$Region)
 
-# Generate the score plot
+# Generate the score plot for LD1 vs LD2
 plot(lda_scores[,1], lda_scores[,2], type = "n",
      main = "LDA Score Plot for HDI Data",
      xlab = "LDA Axis 1", ylab = "LDA Axis 2")
@@ -271,18 +447,34 @@ legend("topright", legend = region_names,
        col = c(2:(length(region_names) + 1)), 
        pch = c(15:(15 + length(region_names))))
 ```
-*Countries in Sub Saharan Africa (SSA) appear to differentiate themselves from other regions along LD1 (x axis) while Europe and Central Asia is clustered distinctly in the upper left corner, primarily differentiated along LD2. The other four regions - East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC) have considerable overlap suggesting that these regions share similar features (in regards to LD1 and LD2). When looking at LD1, SSA appears to separate themselves based on HDI, Life Expectancy and Gender Inequality while ECA differentiates itself primarily based on life expectancy and gender inequality. Nevertheless, the groups in the center have outliers (especially the Americas), in which they are not associated with the general trends.*
+
+*Countries in Sub Saharan Africa (SSA) stands out significantly along LD1 (x-axis), suggesting that this region is well-differentiated from others. On the other hand, Europe and Central Asia (ECA) forms a distinct cluster in the upper left corner, primarily separated along LD2 (y-axis), which indicates that the ECA is differentiated from other regions primarily due to variations in Life Expectancy and Gender Inequality Index.*
+
+*The other four regions-East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC)-have considerable overlap. This suggests that these regions share similar features concerning LD1 and LD2, making it more difficult to distinguish them based on these two dimensions alone, meaning that vaariation exists and these regions may have similar economic, social, or demographic structures in relation to the predictor variables.*
+
+*Additionally, when looking at LD1, SSA appears to separate itself primarily based on HDI, Life Expectancy, and the Gender Inequality Index, while ECA differentiates itself along LD2, driven largely by Life Expectancy and Gender Inequality. Furthermore, there are outliers, such as in the Americas, where some observations deviate from the main cluster, suggesting that certain countries in this group show unique features that differ from the general trends of their respective regions.*
+
+### LDA Partition Plot
 
 ```{r}
 library(klaR)
 data$Region <- as.factor(data$Region)
     
-partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021, data = data, method = "lda")
+partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021, 
+         data = data, method = "lda", main = "LDA Partition Plot")
 
 ```
-*Looking at the partition plot, we can see more clearly how countries in SSA and in ECA distinguish themselves while the remaining regions overlap significantly, which suggests that they are less differentiated based on these two variables. This validates our conclusions from the previous problem since Gender Inequality and Life Expectancy are significant coefficients for both LD1 and LD2 in the previous analysis. SSA differentiates itself in the bottom right corner while ECA occupies the top left of the graph.*
+
+*Looking at the partition plot, we can see more clearly how countries in SSA and ECA distinguish themselves, while the remaining regions overlap significantly, suggesting that they are less differentiated based on these two variables. This validates our conclusions from the previous analysis, as Gender Inequality and Life Expectancy were identified as significant contributors to both LD1 and LD2. SSA primarily occupies the lower right portion of the plot, whereas ECA is concentrated in the upper left. The substantial overlap among the other regions, particularly LAC, EAP, and AS, indicates that additional variables may be needed to improve classification accuracy between these groups.*
+
+### K-Nearest Neighbors
+
+K-Nearest Neighbors (KNN) classifies data points based on the majority class of their closest k neighbors, with k=5 in this case. 
 
 ```{r}
+
+library(class)
+
 # Define training data
 train_X <- data[, c("HDI_2021", "Life_Expectancy_2021")]
 train_y <- as.factor(data$Region)
@@ -307,4 +499,7 @@ ggplot(data, aes(x = HDI_2021, y = Life_Expectancy_2021, color = Region)) +
 
 
 ```
-*K-Nearest Neighbors creates classification based on the distance of the nearest neighbors (k=5 in our case). The color of the dot corresponds to its actual classification while the tile represents the predicted region. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, which suggests points with low life expectancy and low HDI are more likely to be classified as SSA. Most of the other regions are clustered together, which suggests that HDI and Life Expectancy are less differentiated among other regions. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
+
+*K-Nearest Neighbors creates classification based on the distance of the nearest neighbors (k=5 in our case). In the plot, the color of each dot corresponds to the actual classification of the region, while the background grid represents the predicted classification for different areas of the feature space. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, indicating that countries with lower Human Development Index (HDI) and life expectancy are predominantly classified as SSA. This aligns with our prior analyses showing that SSA tends to have lower values for these indicators compared to other regions.*
+
+*For other regions, there is considerable overlap, particularly among East Asia & Pacific (EAP), Europe & Central Asian (ECA), Latin America & the Caribbean (LAC), and South Asia (SA), suggesting that HDI and Life Expectancy alone may not be sufficient enough to classify these groups. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
