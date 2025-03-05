@@ -1,16 +1,33 @@
 ---
-title: "Pset4"
-output: html_document
+title: 'S&DS 363 Problem Set 4: MANOVA & GLM'
+author: "Franklin Wu and Teresa Nguyen"
 date: "2025-03-04"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Data Cleaning 
+## Human Development Index MANOVA / GLM
 
-Read in Data, choose the columns that best fit our needs, and rename the columns.
+MANOVA is a way to analyze the group to predict differences in the multivariate means of continuous variables and in our study, we will be using MANOVA to examine if groups differ across of a combination of dependent variables to understand the relationship between the variables. 
+
+### Data Cleaning and Useful Packages
+
+```{r}
+library(MASS)
+library(biotools)
+library(heplots)
+library(klaR)
+library(car)
+
+```
+
+Always need to start with this first. Read in Data, choose the columns that best fit our needs, and rename the columns.
 
 ```{r}
 data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
@@ -65,22 +82,50 @@ table(data$Region, data$Income_Level)
 
 ```
 
+### Interaction Plots for Each Response Variable
+
+We chose our categorical variables to be the region and income level and our response variables are life expectancy, human inequality coefficient, and mean years of schooling. 
 
 ```{r}
-interaction.plot(data$Region, data$Income_Level, data$Life_Expectancy_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
 
-interaction.plot(data$Region, data$Income_Level, data$Human_Inequality_Coeff_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
+interaction.plot(data$Region, data$Income_Level, data$Life_Expectancy_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Life Expectancy", main = "Interaction Plot for Region, Income Level, and Life Expectancy")
 
-interaction.plot(data$Region, data$Income_Level, data$Mean_Years_Schooling_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
+interaction.plot(data$Region, data$Income_Level, data$Human_Inequality_Coeff_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Human Inequality Coefficient", main = "Interaction Plot for Region, Income Level, and Inequality Coef.")
+
+interaction.plot(data$Region, data$Income_Level, data$Mean_Years_Schooling_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Mean Years of Schooling", main = "Interaction Plot for Region, Income Level, and Mean Years Schooling")
 ```
+
+The interaction plot for *Life Expectancy* in relation to Region and Income Level suggests a possible interaction between the variables. The lines representing *Lower-Middle* and *Upper-Middle* income levels are not parallel, particularly as they approach the lower end of the life expectancy scale, around 60. The divergence possibly indicates that the effect of Region on Life Expectancy is not consistent across different income levels. Additionally, the *High-Income group* follows a different trajectory compared to the *Upper-Middle Income* group, suggesting greater variation in life expectancy across regions. If the lines were parallel, it would no interactions of Region and Life Expectancy across income levels. However, the lack of parallels between each of the income level groups seem to show that the impact of Region on Life Expectancy varies depending on Income Level, so there may be an interaction.
+
+For the second plot, which examines the *Human Inequality Coefficient*, the *Lower-Middle* and *High-Income level* lines appear to be parallel, indicating no interaction. However, the *Lower-Middle* and *Upper-Middle* income lines converge and follow a different trajectory, suggesting a possible interaction between these income levels.
+
+Finally, in the third plot analyzing Mean Years of Schooling, there is a possible interaction between the *High-Income* and *Upper-Middle Income groups*, as their lives are no parallel, showing **possibly** that Income Level significantly affects schooling outcomes in these categories; on the other hand, the Upper-Middle and Lower-Middle income groups appear to have parallel lines, indicating little to no interaction. 
+
+### Two Way MANOVA
+
+We hypothesize that mean vectors change according to the independent variables region and income level. 
+
 ```{r}
 options(contrasts = c("contr.sum", "contr.poly"))
 h_model <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, Mean_Years_Schooling_2021) ~ Region*Income_Level,  
                 data = data)
 summary(Anova(h_model, type = 3), univariate = T)
 ```
+
+*Multivariate Results*: For each of the tests (Wilks, Pillalli, Hotelling, and Roy), region, income level, and interaction are all significant as all the p-values of each of these are under our critical value of 0.05 and that there is an interaction effect between region and income level. 
+
+*Univaraite Results*: 
+Income levels seem to strongly affect life expectancy with a p value of less than 0.05 (9.0349e-08), suggesting that higher income levels are associated with longer life expectancies. Regions have a strong effect on life expectancy, but not as strong as income levels with a p-value of 0.0026, which may be because the life expectancy is different among regions. There is a strong interaction however, between region, income level, and life expectancy, which shows that income and life expectancy varies by region. 
+There seems to be a that all the variables, region, income level, and the interactino between region and income level seem to greatly affect the human inequality coefficient, showing that inequality levels vary by region and income levels. 
+For mean years of schooling, region and the interaction between income and region are not significant with p values greater than 0.05. However, the income level is significant with p = 6.2479e-08 < 0.05, suggesting that schooling levels increase with income. 
+
+### Multivariate and Univariate Contrasts
+
+
 ```{r}
-linearHypothesis(h_model, "Income_LevelLow-Middle + Income_LevelUpper-Middle - 2*Income_LevelHigh = 0", test = "Wilks")
+
+linearHypothesis(h_model, "Income_Level1 + Income_Level2 = 0", test = "Wilks")
+
 levels(data$Income_Level)
 colnames(coef(h_model))
 
@@ -110,5 +155,16 @@ library(heplots)
 cqplot(h_model_cont$residuals)
 
 ```
+```{r}
 
+# Load required package
+library(vegan)
+
+(mrpp_region <- mrpp(data[, c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", "Mean_Years_Schooling_2021")], data$Region,))
+
+
+(mrpp_income <- mrpp(data[, c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", "Mean_Years_Schooling_2021")],data$Income_Level,))
+
+
+```
 
