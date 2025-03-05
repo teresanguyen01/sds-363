@@ -121,7 +121,6 @@ For mean years of schooling, region and the interaction between income and regio
 
 ### Multivariate and Univariate Contrasts
 
-
 ```{r}
 
 linearHypothesis(h_model, "Income_Level1 + Income_Level2 = 0", test = "Wilks")
@@ -130,6 +129,16 @@ levels(data$Income_Level)
 colnames(coef(h_model))
 
 ```
+
+*Multivariate contrast tests*
+
+In our first pair of test, we tested a contrast comparing the combined impact of the factors Middle Income and SSA vs Upper Income and SSA. Our first test gave us a p-value of 0.0017 (less than our alpha of 0.05), which suggests that the combined effect of Middle Income and Sub-Saharan Africa (SSA) is significantly different from zero. In contrast, our second test looking at the factors upper income and SSA had a p-value of 0.3585, which is larger than our p-value of 0.05 and means we do not have statistically significant evidence to reject the null hypothesis. The findings from these 2 multi-variate contrast tests suggest that the factors Middle Income and SSA (for households) have a strong combined effect on the outcomes (Life Expectancy, Human Inequality Coefficient, Mean Years of Schooling), while the combined effect of SSA and Upper Income do not have that effect. Based on some preliminary conjecture, it may be that middle income households in SSA exhibit distinct patterns in life expectancy, education, or inequality that make their combination highly influential while upper income households in SSA may 1) lack the same set of patterns relating to these outcomes or 2) it may be that our data has lesser households in the Upper Income threshold. 
+
+In another multivariate contrast test we looked at whether being in Europe (and Central Asia) and High Income differed from being Middle Income in Sub-Saharan Africa. Our results gave us a p-value of 0.014, which means we can reject the null hypothesis that these combined effects are equal. This finding has many interesting implications as it means wealthier countries in Europe and Central Asia (which have higher amounts of wealth on average) impact our outcome variables differently in comparison to middle income countries in SSA. This likely addresses many underlying factors identified in economics research - for instance, higher income countries in ECA tend to have better infrastructure (which directly impacts our outcome variables relating to health and education) in combination with other factors such as stronger and more political institutions in higher income countries in ECA compared to more middle level income countries in SSA. 
+
+*Univariate contrast tests*
+
+We also took a look at univariate contrast tests in reference to the outcome variable of life expectancy. Our first test looked at whether Region 1 (Asia) had a significant impact on our outcome variable and our second test looked at whether Region 1 and Region 2 (EAP) have significantly different effects on life expectancy. Our results show that the p-value of 0.2115 and 0.6763 respectively are greater than the alpha of 0.05, which means we cannot reject the null hypothesis that these regions have a stastistically significant impact on the outcome variable of just life expectancy.
 
 ```{r}
 #DONT eliminate outlier - messes up model
