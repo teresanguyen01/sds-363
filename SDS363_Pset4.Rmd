@@ -1,0 +1,114 @@
+---
+title: "Pset4"
+output: html_document
+date: "2025-03-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Data Cleaning 
+
+Read in Data, choose the columns that best fit our needs, and rename the columns.
+
+```{r}
+data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
+
+# Based on going through the Kaggle dataset and choosing the most relevant features
+data <- data[, c(
+  "Country",
+  "UNDP.Developing.Regions",
+  "HDI.Rank..2021.",
+  "Human.Development.Index..2021.",
+  "Life.Expectancy.at.Birth..2021.",
+  "Mean.Years.of.Schooling..2021.",
+  "Gross.National.Income.Per.Capita..2021.",
+  "Gender.Development.Index..2021.",
+  "Coefficient.of.human.inequality..2021.",
+  "Overall.loss......2021.",
+  "Gender.Inequality.Index..2021.",
+  "Maternal.Mortality.Ratio..deaths.per.100.000.live.births...2021.",
+  "Adolescent.Birth.Rate..births.per.1.000.women.ages.15.19...2021.",
+  "Labour.force.participation.rate..female....ages.15.and.older...2021.",
+  "Labour.force.participation.rate..male....ages.15.and.older...2021.",
+  "Carbon.dioxide.emissions.per.capita..production...tonnes...2021."
+)]
+
+# rename for better readability
+colnames(data) <- c(
+  "Country",
+  "Region",
+  "HDI_Rank_2021",
+  "HDI_2021",
+  "Life_Expectancy_2021",
+  "Mean_Years_Schooling_2021",
+  "GNI_Per_Capita_2021",
+  "Gender_Dev_Index_2021",
+  "Human_Inequality_Coeff_2021",
+  "Overall_Loss_2021",
+  "Gender_Inequality_Index_2021",
+  "Maternal_Mortality_Rate_2021",
+  "Adolescent_Birth_Rate_2021",
+  "Female_Labour_Force_2021",
+  "Male_Labour_Force_2021",
+  "CO2_Emissions_percapita_2021"
+)
+
+# removes all rows in the data object that contain any missing (NA) values
+# our data frame should only include complete cases 
+data <- data[complete.cases(data) & data$Region != "", ]
+data <- subset(data, Region != "ECA")
+names(data)
+data$Income_Level <- cut(data$GNI_Per_Capita_2021, breaks = c(-Inf, 4465, 13845, Inf), labels = c("Low-Middle", "Upper-Middle", "High"))
+table(data$Region, data$Income_Level)
+
+```
+
+
+```{r}
+interaction.plot(data$Region, data$Income_Level, data$Life_Expectancy_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
+
+interaction.plot(data$Region, data$Income_Level, data$Human_Inequality_Coeff_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
+
+interaction.plot(data$Region, data$Income_Level, data$Mean_Years_Schooling_2021, lwd = 3, col = c("red", "blue"), trace.label = "Region", xlab = "Income Level", main = "Interaction Plot for Region & Income Level")
+```
+```{r}
+options(contrasts = c("contr.sum", "contr.poly"))
+h_model <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, Mean_Years_Schooling_2021) ~ Region*Income_Level,  
+                data = data)
+summary(Anova(h_model, type = 3), univariate = T)
+```
+```{r}
+linearHypothesis(h_model, "Income_LevelLow-Middle + Income_LevelUpper-Middle - 2*Income_LevelHigh = 0", test = "Wilks")
+levels(data$Income_Level)
+colnames(coef(h_model))
+
+```
+
+```{r}
+#DONT eliminate outlier - messes up model
+#data <- subset(data, CO2_Emissions_percapita_2021 < 7)
+
+plot(data$CO2_Emissions_percapita_2021, data$Life_Expectancy_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Life Expectancy", xlab = "CO2_Emissions_percapita_2021", ylab = "Life Expectancy", pch = 19)
+
+plot(data$CO2_Emissions_percapita_2021, data$Human_Inequality_Coeff_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Inequality Coeff", xlab = "CO2_Emissions_percapita_2021", ylab = "Inequality Coefficient", pch = 19)
+
+plot(data$CO2_Emissions_percapita_2021, data$Mean_Years_Schooling_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Years of Schooling", xlab = "CO2_Emissions_percapita_2021", ylab = "Mean Years Schooling", pch = 19)
+
+h_model_cont <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, Mean_Years_Schooling_2021) ~ Region * Income_Level + CO2_Emissions_percapita_2021, data = data)
+
+summary(Anova(h_model_cont, type = 3), univariate = TRUE)
+
+```
+```{r}
+#my heplots not working
+library(heplots)
+cqplot(h_model_cont$residuals)
+
+```
+
+
