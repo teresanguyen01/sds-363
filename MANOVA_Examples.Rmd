@@ -1,0 +1,428 @@
+---
+title: "MANOVA"
+author: "JDRS"
+date: 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##  MANOVA in R 
+####  Multivariate Statistics
+####  J. Reuning-Scherer
+
+
+First, some useful packages for performing MANOVA.
+
+```{r}
+library(MASS)
+library(biotools)
+library(heplots)
+library(klaR)
+library(car)
+```
+
+##  Example 1 : Environmental Attitude Survey
+
+For four questions, the scale is (1=Strongly Agree, 5=Strongly Disagree)
+v10 : Modern science will solve our environmental problems with little change to our way of life
+v12 : Almost everything we do in modern life harms the environment.
+V25 : There is no point in doing what I can for the environment unless others do the same
+v47 : Poorer countries should be expected to make less effort than richer countries to protect the environment
+
+One question has a different scale :
+v38 : In general, do you think that a rise in the world'???'s temperature caused by the ???greenhouse effect??? is (1=Extremely Dangerous for you and family, 5=Not dangerous for you and family)
+
+In addition, the following variables were measured
+V3 : Country (Japan, US, Mexico, Netherlands)
+V200 : Gender (1=male, 2=female)
+V201 : Age in Years
+V202 : Marital Status (1=Married, 2=Widowed, 3=Divorced, 4=Separated, 5=Single never married)
+V204 : Years of education
+V205 : Highest Degree obtained
+V246 : Political Views (1=Extremely Liberal (Communist), 5=Extremely Conservative (Fascist))
+
+```{r}
+#get data
+envsurvey <-  read.csv("https://raw.githubusercontent.com/jreuning/SDS363_data/refs/heads/main/Environmental_Survey_MANOVA.csv", header = T, as.is = F)
+
+#make better names
+names(envsurvey) <- c("Country", "Science", "MLife", "NoPoint", "GBWarm", "PoorCoun", "Gender", "Age", "Marital", "Educ", "Degree", "Polview")
+
+#Change country levels
+levels(envsurvey$Country) <- c("Japan", "Mexico", "Netherlands", "USA")
+str(envsurvey)
+
+```
+
+Check for multivariate normality in each Country
+
+```{r}
+#see if data is multivariate normal in EACH Country
+
+#examine multivariate normality within each country
+for (i in 1:nlevels(envsurvey$Country)){
+  cqplot(envsurvey[envsurvey$Country == levels(envsurvey$Country)[i], c(2:6)],label= levels(envsurvey$Country)[i])
+}
+
+qqPlot(envsurvey[,2])
+```
+
+Boxplots of mean score by Country for each response variable
+
+```{r}
+#Make labels vector
+responsevec <- c("Modern Science", "Modern Life", "No Point", "Poor Countries", "Warming Serious")
+for (i in 2:6){
+  boxplot(envsurvey[, i] ~ Country, data = envsurvey, col = 'yellow', main = paste(responsevec[i-1], "By Country"), ylab = "")
+  #calculate means using the tapply function - could also use the by function
+  means <- tapply(envsurvey[, i], envsurvey$Country, mean)
+  points(means, col = "red", pch = 19, cex = 1.2)
+  text(x = c(1:4), y = means+.2, labels = round(means,2))
+}
+```
+
+Perform one-way MANOVA by Country
+
+```{r}
+
+names(envsurvey)
+surveyManova <- lm(cbind(Science, MLife, NoPoint, GBWarm, PoorCoun) ~ Country, 
+                data = envsurvey)
+summary.aov(surveyManova)
+anova(surveyManova)   #Default is Pillai's trace
+anova(surveyManova, test = "Wilks")
+anova(surveyManova, test = "Roy")
+
+```
+ 
+ Another COOL way to get results is to use the `Anova()` function in the CAR package.
+ 
+```{r}
+#Just multivariate results
+summary(Anova(surveyManova))
+
+#Multivariate and univariate results
+summary(Anova(surveyManova), univariate = T)
+
+#You can even adjust the univariate test p-values using p.adjust - default is Holm
+summary(Anova(surveyManova), univariate = T, p.adjust.method = TRUE) 
+summary(Anova(surveyManova), univariate = T, p.adjust.method = "hochberg") 
+
+```
+ 
+
+Next, we check to make sure residuals have a multivariate normal distribution (which we expect will be true based on normality in each group)
+
+```{r}
+cqplot(surveyManova$residuals, label = "Residuals from Env. Survey MANOVA")
+
+names(surveyManova)
+surveyManova$fitted.values[190:210,]
+
+```
+###Contrasts (Univariate and Multivariate)
+
+Let's do the following comparisons:
+
+* Japan vs. USA
+* Japan vs. Netherlands
+* USA vs. 3 other countries.
+
+We use the `linearHypothesis()` function in the `car` package.
+
+```{r}
+#IMPORTANT - make sure this line of code is run BEFORE running contrasts
+options(contrasts = c("contr.treatment", "contr.poly"))  #this is the R default, but just in case
+
+#Current values of contrasts
+contrasts(envsurvey$Country)
+surveyManova$contrasts
+
+#To understand the next bit of the code, you have to keep in mind that Japan is the default Country level
+#?linearHypothesis
+
+#Test Japan vs. USA
+linearHypothesis(surveyManova, "CountryUSA = 0") 
+
+#Test Japan vs. Netherlands
+linearHypothesis(surveyManova, "CountryNetherlands = 0") 
+
+#Test USA vs. others
+linearHypothesis(surveyManova, "3*CountryUSA - CountryNetherlands - CountryMexico = 0") 
+
+```
+
+To get univariate contrasts, we simply fit univariate models and follow the same procedure (haven't found a more efficient way to do this)
+
+```{r}
+#As an example, here are univariate contrasts for 'Modern Life is Bad for Environment'
+mod.MLife <- lm(MLife ~ Country, data = envsurvey)
+
+#Test Japan vs. USA
+linearHypothesis(mod.MLife, "CountryUSA = 0") 
+
+#Test Japan vs. Netherlands
+linearHypothesis(mod.MLife, "CountryNetherlands = 0") 
+
+#Test USA vs. others
+linearHypothesis(mod.MLife, "3*CountryUSA - CountryNetherlands - CountryMexico = 0")  
+
+```
+
+
+###Tukey Multiple Comparison Procedure (univariate)
+
+As I mentioned in class, at the moment, this is only univariate corrections.  We look at the Mystic Aquarium Questionaire Example.  Incidentally, you can get the questions [HERE](https://yale.box.com/s/t5917kf9zks1tlz27a4fyn6a4jvntued).
+
+
+```{r}
+#Here is the data
+mystic <- read.csv("https://raw.githubusercontent.com/jreuning/SDS363_data/refs/heads/main/mystic.CSV", header = T)
+head(mystic)
+
+#Fit model using aov() function
+mysticaov <- aov(Total_Score ~ Treatment, data = mystic)
+
+#Fix margins
+TukeyHSD(mysticaov)
+par(mar = c(5, 11, 4, 1))
+plot(TukeyHSD(mysticaov), las = 1)
+
+```
+
+
+###General Multiple Comparison Corrections (i.e. adjust p-values)
+
+```{r}
+#General Multiple Comparison Corrections
+
+p.adjust(p = c(.0001, .6563, .0249), method = "bonferroni")
+
+p.adjust(p = c(.0001, .6563, .0249), method = "holm")
+
+p.adjust(p = c(.0001, .6563, .0249), method = "hochberg")
+```
+
+### Daniela Overstory Data
+
+See class notes for description and variable names.
+
+First, we fit a two-way MANOVA model using plantation ID and overstory species to predict square root counts in three height classes. 
+
+Interaction plots for each of three height classes.
+```{r}
+#get the data
+daniela <- read.csv("https://raw.githubusercontent.com/jreuning/SDS363_data/refs/heads/main/Daniela.csv", header = T, as.is = TRUE)
+
+interaction.plot(daniela$Treatment, daniela$Plantation, daniela$ASQRT,
+  lwd = 3, col = c("red", "blue", "black"), trace.label = "Plantation", 
+  xlab = "Species", main = "Interaction Plot for Ht Class A")
+
+interaction.plot(daniela$Treatment, daniela$Plantation, daniela$BSQRT,
+  lwd = 3, col = c("red", "blue", "black"), trace.label = "Plantation", 
+  xlab = "Species", main = "Interaction Plot for Ht Class B")
+
+interaction.plot(daniela$Treatment, daniela$Plantation, daniela$CSQRT,
+  lwd = 3, col = c("red", "blue", "black"), trace.label = "Plantation", 
+  xlab = "Species", main = "Interaction Plot for Ht Class C")
+
+
+```
+
+Next, we fit a two-way MANOVA model with an interaction.
+
+```{r}
+
+#SUPER IMPORTANT - include these options below to get correct Type III sum of squares (partial SS)
+#See  https://rcompanion.org/rcompanion/d_04.html  for an explanation.  This will make results consistent 
+#  with other stat programs like SAS and SPSS.
+
+options(contrasts = c("contr.sum", "contr.poly"))
+
+DanielaMAOV <- lm(cbind(ASQRT, BSQRT, CSQRT) ~ Plantation*Treatment,  
+                data = daniela)
+
+#Multivariate and univariate results
+summary(Anova(DanielaMAOV, type = 3), univariate = T)
+
+```
+
+Next - run as a one-way ANOVA to get a few specific contrasts.
+
+```{r}
+#RUN LINE BELOW TO MAKE SURE CONTRASTS ARE SET CORRECTLY -  this returns things to their default level
+options(contrasts = c("contr.treatment", "contr.poly"))
+
+
+#Make sure TRTCOMB is a factor
+daniela$TRTCOMB <- as.factor(daniela$TRTCOMB)
+
+#Fit one way MANOVA model
+DanielaMAOV2 <- lm(cbind(ASQRT, BSQRT, CSQRT) ~ TRTCOMB, data = daniela)
+#Fit one way ANOVA model just for ASQRT
+DanielaASQRT <- lm(ASQRT ~ TRTCOMB, data = daniela)
+
+contrasts(daniela$TRTCOMB)
+levels(daniela$TRTCOMB)
+
+#Get multivariate contrast for P vs Q - notice that PCB is the reference level
+linearHypothesis(DanielaMAOV2, "TRTCOMBPHA + TRTCOMBPTA + TRTCOMBPVF + TRTCOMBPVG + TRTCOMBPVK 
+                 - TRTCOMBQCB - TRTCOMBQHA - TRTCOMBQTA - TRTCOMBQVF - TRTCOMBQVG - TRTCOMBQVK= 0") 
+
+#Get univariate contrast for P vs Q for ASQRT
+linearHypothesis(DanielaASQRT, "TRTCOMBPHA + TRTCOMBPTA + TRTCOMBPVF + TRTCOMBPVG + TRTCOMBPVK 
+                 - TRTCOMBQCB - TRTCOMBQHA - TRTCOMBQTA - TRTCOMBQVF - TRTCOMBQVG - TRTCOMBQVK= 0") 
+
+#Get multivariate contrast for P,Q and VF,VK interaction
+linearHypothesis(DanielaMAOV2, "TRTCOMBPVF - TRTCOMBPVK - TRTCOMBQVF + TRTCOMBQVK = 0") 
+
+#Get univariate contrast for P,Q and VF,VK interaction for ASQRT
+linearHypothesis(DanielaASQRT, "TRTCOMBPVF - TRTCOMBPVK - TRTCOMBQVF + TRTCOMBQVK = 0") 
+
+```
+
+
+Next, we run a multivariate GLM where we also include light and litter as covariates.
+
+**VERY IMPORTANT - you need to change the model parameterization options using the code below.   Otherwise, you'll get Type III SS that won't match what you get in any other program.  Note however, this will mess up the contrasts calculated above!!!!!**
+
+```{r}
+
+#SUPER IMPORTANT - include these options below to get correct Type III sum of squares (partial SS)
+#See  https://rcompanion.org/rcompanion/d_04.html  for an explanation
+options(contrasts = c("contr.sum", "contr.poly"))
+
+### Default is: options(contrasts = c("contr.treatment", "contr.poly"))
+
+#Fit the model
+DanielaMod2 <- lm(cbind(ASQRT, BSQRT, CSQRT) ~ Plantation*Treatment + Light + Litter,  
+                data = daniela)
+
+#Multivariate results and univariate results with with type 3 Sum of squares
+summary(Anova(DanielaMod2, type = 3), univariate = T)
+
+#To get Type I Sum of Squares (sequential), you'll need to fit a separate model for each response.
+mod1 <- lm(ASQRT ~ Treatment + Plantation + Treatment*Plantation + Light + Litter, data = daniela)
+mod2 <- lm(BSQRT ~ Treatment + Plantation + Treatment*Plantation + Light + Litter, data = daniela)
+mod3 <- lm(CSQRT ~ Treatment + Plantation + Treatment*Plantation + Light + Litter, data = daniela)
+
+#If you want them, Type I Sum of Squares
+summary.aov(mod1)
+summary.aov(mod2)
+summary.aov(mod3)
+
+#Finally, let's check our residuals
+cqplot(DanielaMod2$residuals, label = "Residuals from Daniela GLM")
+
+```
+
+### Warming in ND Data
+
+Let's fit a model for our three responses that include month, location, and year.
+
+**VERY IMPORTANT - you need to change the model parameterization options using the code below.   Otherwise, you'll get Type III SS that won't match what you get in any other program.**
+
+```{r}
+#get the data
+NDTemp <- read.csv("https://raw.githubusercontent.com/jreuning/SDS363_data/refs/heads/main/WarmingND.csv", header = T)
+head(NDTemp)
+dim(NDTemp)
+#SUPER IMPORTANT - include these options below to get correct Type III sum of squares (partial SS)
+#See  https://rcompanion.org/rcompanion/d_04.html  for an explanation
+options(contrasts = c("contr.sum", "contr.poly"))
+
+### Default is: options(contrasts = c("contr.treatment", "contr.poly"))
+
+#Fit the model
+NDTempMod1 <- lm(cbind(min, avg, max) ~ sitename + month + year, data = NDTemp)
+
+#Multivariate and univariate results with type 3 Sum of squares
+summary(Anova(NDTempMod1, type = 3), univariate = T)
+
+#To get univariate results for minimum temperature ala regression
+modmin <- lm(min ~ sitename + month + year, data = NDTemp)
+summary(modmin)
+
+#Get 95% CI for slope for year
+confint(modmin, "year")
+
+```
+
+Of course, we should check the multivariate residuals for our model:
+
+```{r}
+cqplot(NDTempMod1$residuals, label = "Residuals from ND Temp Data")
+```
+
+It seems that indeed our residuals do NOT have a multivariate normal distribution - they are much more spread out that we would expect just by chance.
+
+Let's look at residuals just for min temp model:
+```{r}
+plot(modmin, which = c(1,2), pch = 19, col = 'blue')
+
+```
+
+We can see there is heteroskedasticity - more variability at low temperatures.
+
+Let's try a Box-Cox transformation to see what is suggested.  Note that this requires strictly positive values for our response variable.
+
+```{r}
+#make values all positive
+NDTemp$newmin <- NDTemp$min - min(NDTemp$min, na.rm = T)*1.01
+modmin2 <- lm(newmin ~ sitename + month + year, data = NDTemp)
+BC <- boxcox(modmin2, optimize = T)
+(lambda <- BC$x[which.max(BC$y)])
+
+#I tried Box-Cox for all three variables.  It's suggests the following transformations
+NDTemp$newmin <- (NDTemp$min - min(NDTemp$min, na.rm = T)*1.01)^1.8
+NDTemp$newavg <- (NDTemp$avg - min(NDTemp$avg, na.rm = T)*1.01)^1.7
+NDTemp$newmax <- (NDTemp$max - min(NDTemp$max, na.rm = T)*1.01)^1.6
+
+#At the univariate level, things look much better
+modmin2 <- lm(newmin ~ sitename + month + year, data = NDTemp)
+plot(modmin2, which = c(1, 2), col = 'blue', pch = 19)
+
+modmin3 <- lm(newavg ~ sitename + month + year, data = NDTemp)
+plot(modmin3, which = c(1, 2), col = 'blue', pch = 19)
+
+modmin4 <- lm(newmax ~ sitename + month + year, data = NDTemp)
+plot(modmin4, which = c(1, 2), col = 'blue', pch = 19)
+
+
+
+```
+
+Refit the multivariate model:
+
+```{r}
+#Fit the model
+NDTempMod2 <- lm(cbind(newmin, newavg, newmax) ~ sitename + month + year, data = NDTemp)
+
+#Multivariate and univariate results with type 3 Sum of squares
+summary(Anova(NDTempMod2, type = 3), univariate = T)
+
+cqplot(NDTempMod2$residuals, label = "Residuals from ND Temp Data")
+```
+Still not multivariate normal.   Clearly, further work would be required!
+
+##  MRPP
+
+Run a multi-response permutation procedure on the environmental survey data by country
+
+```{r}
+library(vegan)
+#?mrpp
+(mrpp1 <- mrpp(envsurvey[,c("Science", "MLife", "NoPoint", "GBWarm", "PoorCoun")], envsurvey$Country))
+
+```
+
+
+
+
+
+
+
