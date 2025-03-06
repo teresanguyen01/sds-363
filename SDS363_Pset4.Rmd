@@ -24,7 +24,6 @@ library(biotools)
 library(heplots)
 library(klaR)
 library(car)
-
 ```
 
 Always need to start with this first. Read in Data, choose the columns that best fit our needs, and rename the columns.
@@ -77,7 +76,9 @@ colnames(data) <- c(
 data <- data[complete.cases(data) & data$Region != "", ]
 data <- subset(data, Region != "ECA")
 names(data)
-data$Income_Level <- cut(data$GNI_Per_Capita_2021, breaks = c(-Inf, 4465, 13845, Inf), labels = c("Low-Middle", "Upper-Middle", "High"))
+data$Income_Level <- cut(data$GNI_Per_Capita_2021, breaks = 
+                           c(-Inf, 4465, 13845, Inf), labels = 
+                           c("Low-Middle", "Upper-Middle", "High"))
 table(data$Region, data$Income_Level)
 
 ```
@@ -88,18 +89,27 @@ We chose our categorical variables to be the region and income level and our res
 
 ```{r}
 
-interaction.plot(data$Region, data$Income_Level, data$Life_Expectancy_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Life Expectancy", main = "Interaction Plot for Region, Income Level, and Life Expectancy")
+interaction.plot(data$Region, data$Income_Level, data$Life_Expectancy_2021, 
+                 lwd = 3, col = c("red", "blue"), trace.label = "Income Level", 
+                 xlab = "Region", ylab = "Life Expectancy", 
+                 main = "Interaction Plot for Region, Income Level, and Life Expectancy")
 
-interaction.plot(data$Region, data$Income_Level, data$Human_Inequality_Coeff_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Human Inequality Coefficient", main = "Interaction Plot for Region, Income Level, and Inequality Coef.")
+interaction.plot(data$Region, data$Income_Level, data$Human_Inequality_Coeff_2021, 
+                 lwd = 3, col = c("red", "blue"), trace.label = "Income Level", 
+                 xlab = "Region", ylab = "Human Inequality Coefficient", 
+                 main = "Interaction Plot for Region, Income Level, and Inequality Coef.")
 
-interaction.plot(data$Region, data$Income_Level, data$Mean_Years_Schooling_2021, lwd = 3, col = c("red", "blue"), trace.label = "Income Level", xlab = "Region", ylab = "Mean Years of Schooling", main = "Interaction Plot for Region, Income Level, and Mean Years Schooling")
+interaction.plot(data$Region, data$Income_Level, data$Mean_Years_Schooling_2021, 
+                 lwd = 3, col = c("red", "blue"), trace.label = "Income Level", 
+                 xlab = "Region", ylab = "Mean Years of Schooling", 
+                 main = "Interaction Plot for Region, Income Level, and Mean Years Schooling")
 ```
 
 The interaction plot for *Life Expectancy* in relation to Region and Income Level suggests a possible interaction between the variables. The lines representing *Lower-Middle* and *Upper-Middle* income levels are not parallel, particularly as they approach the lower end of the life expectancy scale, around 60. The divergence possibly indicates that the effect of Region on Life Expectancy is not consistent across different income levels. Additionally, the *High-Income group* follows a different trajectory compared to the *Upper-Middle Income* group, suggesting greater variation in life expectancy across regions. If the lines were parallel, it would no interactions of Region and Life Expectancy across income levels. However, the lack of parallels between each of the income level groups seem to show that the impact of Region on Life Expectancy varies depending on Income Level, so there may be an interaction.
 
-For the second plot, which examines the *Human Inequality Coefficient*, the *Lower-Middle* and *High-Income level* lines appear to be parallel, indicating no interaction. However, the *Lower-Middle* and *Upper-Middle* income lines converge and follow a different trajectory, suggesting a possible interaction between these income levels.
+For the second plot, which examines the *Human Inequality Coefficient*, the *Lower-Middle* and *High-Income level* lines appear to be parallel, indicating no interaction. However, the *Lower-Middle* and *Upper-Middle* income lines converge showing possible interaction between these income levels.
 
-Finally, in the third plot analyzing Mean Years of Schooling, there is a possible interaction between the *High-Income* and *Upper-Middle Income groups*, as their lives are no parallel, showing **possibly** that Income Level significantly affects schooling outcomes in these categories; on the other hand, the Upper-Middle and Lower-Middle income groups appear to have parallel lines, indicating little to no interaction. 
+Finally, in the third plot analyzing Mean Years of Schooling, there is an interaction between the *High-Income* and *Upper-Middle Income groups*, as their lives are no parallel, showing that Income Level significantly affects schooling outcomes in these categories; on the other hand, the Upper-Middle and Lower-Middle income groups appear to have parallel lines, indicating little to no interaction. 
 
 ### Two Way MANOVA
 
@@ -107,7 +117,8 @@ We hypothesize that mean vectors change according to the independent variables r
 
 ```{r}
 options(contrasts = c("contr.sum", "contr.poly"))
-h_model <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, Mean_Years_Schooling_2021) ~ Region*Income_Level,  
+h_model <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, 
+                    Mean_Years_Schooling_2021) ~ Region*Income_Level,  
                 data = data)
 summary(Anova(h_model, type = 3), univariate = T)
 ```
@@ -115,8 +126,8 @@ summary(Anova(h_model, type = 3), univariate = T)
 *Multivariate Results*: For each of the tests (Wilks, Pillalli, Hotelling, and Roy), region, income level, and interaction are all significant as all the p-values of each of these are under our critical value of 0.05 and that there is an interaction effect between region and income level. 
 
 *Univaraite Results*: 
-Income levels seem to strongly affect life expectancy with a p value of less than 0.05 (9.0349e-08), suggesting that higher income levels are associated with longer life expectancies. Regions have a strong effect on life expectancy, but not as strong as income levels with a p-value of 0.0026, which may be because the life expectancy is different among regions. There is a strong interaction however, between region, income level, and life expectancy, which shows that income and life expectancy varies by region. 
-There seems to be a that all the variables, region, income level, and the interactino between region and income level seem to greatly affect the human inequality coefficient, showing that inequality levels vary by region and income levels. 
+Income levels seem to strongly affect life expectancy with a p value of less than 0.05 (9.0349e-08), suggesting that higher income levels are associated with longer life expectancy. Regions have a strong effect on life expectancy, but not as strong as income levels with a p-value of 0.0026, which may be because the life expectancy is different among regions. There is a strong interaction however, between region, income level, and life expectancy, which shows that income and life expectancy varies by region. 
+There seems to be that all the variables, region, income level, and the interaction between region and income level seem to greatly affect the human inequality coefficient, showing that inequality levels vary by region and income levels. 
 For mean years of schooling, region and the interaction between income and region are not significant with p values greater than 0.05. However, the income level is significant with p = 6.2479e-08 < 0.05, suggesting that schooling levels increase with income. 
 
 ### Multivariate and Univariate Contrasts
@@ -138,42 +149,70 @@ In another multivariate contrast test we looked at whether being in Europe (and 
 
 *Univariate contrast tests*
 
-We also took a look at univariate contrast tests in reference to the outcome variable of life expectancy. Our first test looked at whether Region 1 (Asia) had a significant impact on our outcome variable and our second test looked at whether Region 1 and Region 2 (EAP) have significantly different effects on life expectancy. Our results show that the p-value of 0.2115 and 0.6763 respectively are greater than the alpha of 0.05, which means we cannot reject the null hypothesis that these regions have a stastistically significant impact on the outcome variable of just life expectancy.
+We also took a look at univariate contrast tests in reference to the outcome variable of life expectancy. Our first test looked at whether Region 1 (Asia) had a significant impact on our outcome variable and our second test looked at whether Region 1 and Region 2 (EAP) have significantly different effects on life expectancy. Our results show that the p-value of 0.2115 and 0.6763 respectively are greater than the alpha of 0.05, which means we cannot reject the null hypothesis that these regions have a statistically significant impact on the outcome variable of just life expectancy.
+
+### Fitting Multiple Response Linear Model
 
 ```{r}
 #DONT eliminate outlier - messes up model
-#data <- subset(data, CO2_Emissions_percapita_2021 < 7)
+data_1 <- subset(data, CO2_Emissions_percapita_2021 < 7)
 
-plot(data$CO2_Emissions_percapita_2021, data$Life_Expectancy_2021, 
-     main = "CO2_Emissions_percapita_2021 vs. Life Expectancy", xlab = "CO2_Emissions_percapita_2021", ylab = "Life Expectancy", pch = 19)
+plot(data_1$CO2_Emissions_percapita_2021, data_1$Life_Expectancy_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Life Expectancy", 
+     xlab = "CO2_Emissions_percapita_2021", ylab = "Life Expectancy", pch = 19)
 
-plot(data$CO2_Emissions_percapita_2021, data$Human_Inequality_Coeff_2021, 
-     main = "CO2_Emissions_percapita_2021 vs. Inequality Coeff", xlab = "CO2_Emissions_percapita_2021", ylab = "Inequality Coefficient", pch = 19)
+plot(data_1$CO2_Emissions_percapita_2021, data_1$Human_Inequality_Coeff_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Inequality Coeff", 
+     xlab = "CO2_Emissions_percapita_2021", ylab = "Inequality Coefficient", pch = 19)
 
-plot(data$CO2_Emissions_percapita_2021, data$Mean_Years_Schooling_2021, 
-     main = "CO2_Emissions_percapita_2021 vs. Years of Schooling", xlab = "CO2_Emissions_percapita_2021", ylab = "Mean Years Schooling", pch = 19)
+plot(data_1$CO2_Emissions_percapita_2021, data_1$Mean_Years_Schooling_2021, 
+     main = "CO2_Emissions_percapita_2021 vs. Years of Schooling", 
+     xlab = "CO2_Emissions_percapita_2021", ylab = "Mean Years Schooling", pch = 19)
 
-h_model_cont <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, Mean_Years_Schooling_2021) ~ Region * Income_Level + CO2_Emissions_percapita_2021, data = data)
+h_model_cont <- lm(cbind(Life_Expectancy_2021, Human_Inequality_Coeff_2021, 
+                         Mean_Years_Schooling_2021) ~ Region * Income_Level + 
+                     CO2_Emissions_percapita_2021, data = data)
 
 summary(Anova(h_model_cont, type = 3), univariate = TRUE)
 
+
 ```
+
+When comparing CO2 emissions to our outcome variables (life expectancy, inequality coefficient, mean years of schooling), the relationships are linear according to our plots. 
+Similar to our earlier model, region, income level and the interaction between region and income level are significant across all tests (Wilks, Pillalli, Hotelling, and Roy). However, the addition of CO2 emissions per capita does not appear to have any significant impact on the outcome variables for the univariate impact on life expectancy, human inequality and mean years of schooling – all p values are greater than our alpha of 0.05. Although CO2 emissions are known to have an indirect impact on human development factors – our outcome variables – the reason why it may not be a significant factor is that 1) it does not directly impact these outcomes to a large enough extent where CO2 emissions per capita is a statistically significant factor or 2) the impact of CO2 emissions are tied to climate related changes, which often lag in time impact or are embedded in other factors.
+
+### Checking Model Assumptions
+
 ```{r}
-#my heplots not working
+
 library(heplots)
 cqplot(h_model_cont$residuals)
 
 ```
+
+Our assumptions for MANOVA were that the data was taken from populations which have multivariate normal distributions. Because most of the points are within the boundary lines with a linear shape, our assumptions about multivariate normality are correct. 
+
+### Multi-response Permutation Procedure
+
+Multi-response permutation procedures are used to compare the groups and determine whether there are significant differences between the groups. We will be running MRPPs for region and income. 
+
 ```{r}
 
 # Load required package
 library(vegan)
 
-(mrpp_region <- mrpp(data[, c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", "Mean_Years_Schooling_2021")], data$Region,))
-
-
-(mrpp_income <- mrpp(data[, c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", "Mean_Years_Schooling_2021")],data$Income_Level,))
-
+(mrpp_region <- mrpp(data[, 
+                          c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", 
+                            "Mean_Years_Schooling_2021")], data$Region,))
 
 ```
 
+We wanted to asses whether life expectancy, human inequality coefficient, and mean years of schooling varied across the regions. The first thing we noted was that the observed delta (9.045) was lower than the expected delta (12.66), so countries within the same region tended to have more similar life expectancy, human inequality, and schooling levels than if regions were randomly assigned. Additionally, around 28.54% of the variation is explained by our three variables and the significance level is less than 0.05, which confirms that the differences between the regions are statistically significant so region does play a role in the human development differences. 
+
+```{r}
+(mrpp_income <- mrpp(data[, 
+                          c("Life_Expectancy_2021", "Human_Inequality_Coeff_2021", 
+                            "Mean_Years_Schooling_2021")],data$Income_Level,))
+
+```
+Additionally, we saw similar results when analyzing income. The observed delta was lower than the expected delta, so those in the same income group tended to have more similar life expectancies, human inequality, and schooling. Additionally, The p-value is less than 0.05, which indicates that there are differences in life expectancy, inequality, and schooling across the income classes. 
