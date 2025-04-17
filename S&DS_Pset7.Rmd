@@ -1,0 +1,193 @@
+---
+title: "S&DS363_Pset7"
+output: html_document
+date: "2025-04-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Data Cleaning and Useful Packages
+
+```{r}
+library(psych)
+library(car)
+library(corrplot)
+library(EFAtools)
+```
+
+Always need to start with this first. Read in Data, choose the columns that best fit our needs, and rename the columns.
+
+```{r}
+data <- read.csv("/Users/franklinwu/Desktop/Sophomore/S&DS 363/Human Development Index - Full.csv")
+
+# Based on going through the Kaggle dataset and choosing the most relevant features
+data <- data[, c(
+  "Country",
+  "UNDP.Developing.Regions",
+  "HDI.Rank..2021.",
+  "Human.Development.Index..2021.",
+  "Life.Expectancy.at.Birth..2021.",
+  "Mean.Years.of.Schooling..2021.",
+  "Gross.National.Income.Per.Capita..2021.",
+  "Gender.Development.Index..2021.",
+  "Coefficient.of.human.inequality..2021.",
+  "Overall.loss......2021.",
+  "Gender.Inequality.Index..2021.",
+  "Maternal.Mortality.Ratio..deaths.per.100.000.live.births...2021.",
+  "Adolescent.Birth.Rate..births.per.1.000.women.ages.15.19...2021.",
+  "Labour.force.participation.rate..female....ages.15.and.older...2021.",
+  "Labour.force.participation.rate..male....ages.15.and.older...2021.",
+  "Carbon.dioxide.emissions.per.capita..production...tonnes...2021."
+)]
+
+# rename for better readability
+colnames(data) <- c(
+  "Country",
+  "Region",
+  "HDI_Rank_2021",
+  "HDI_2021",
+  "Life_Expectancy_2021",
+  "Mean_Years_Schooling_2021",
+  "GNI_Per_Capita_2021",
+  "Gender_Dev_Index_2021",
+  "Human_Inequality_Coeff_2021",
+  "Overall_Loss_2021",
+  "Gender_Inequality_Index_2021",
+  "Maternal_Mortality_Rate_2021",
+  "Adolescent_Birth_Rate_2021",
+  "Female_Labour_Force_2021",
+  "Male_Labour_Force_2021",
+  "CO2_Emissions_percapita_2021"
+)
+
+data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")] <- lapply(data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021" )], log)
+
+rownames(data) <-data[,1]
+data <- data[ , c("HDI_2021",
+  "Life_Expectancy_2021",
+  "Mean_Years_Schooling_2021",
+  "GNI_Per_Capita_2021",
+  "Gender_Dev_Index_2021",
+  "Human_Inequality_Coeff_2021",
+  "Overall_Loss_2021",
+  "Gender_Inequality_Index_2021",
+  "Maternal_Mortality_Rate_2021",
+  "Adolescent_Birth_Rate_2021",
+  "Female_Labour_Force_2021",
+  "Male_Labour_Force_2021",
+  "CO2_Emissions_percapita_2021"
+)]
+
+data <- na.omit(data)
+```
+
+
+```{r}
+#Examine raw correlations
+round(cor(data),2)
+
+#Get correlation plot
+corrplot.mixed(cor(data), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .5, tl.pos = "lt", tl.cex = .7, p.mat = cor.mtest(data, conf.level = .95)$p, sig.level = .05)
+
+
+```
+*Factor analysis assumes that there are strong correlations among the variables (shared variance) as these clusters of high correlations implies that there is a latent structure to our data that can be explained by different factors. Based on our correlation (and respective correlation plot) there appears to be strong correlations, both positive and negative, among our variables. The exception is "female labor force participation", which has less statistically significant correlations and weaker correlations, in terms of magnitude. According to the plot, life expectancy has strong correlations with maternal mortality, GNI per capita and Adolescent birth rate while male labor force, female labor force, and gender development index.*
+
+```{r}
+KMO(as.matrix(data))
+```
+*Our data had an overall KMO of 0.858 and received a rating of "meritorious". This suggests that our variables have a good amount of shared variance that can be explained by latent factors, making our dataset suitable for factor analysis. Moreover, our individual KMO values for most of our variables are relatively charge, which suggests our selection of indicators is valid.*
+
+```{r}
+comp1 <- prcomp(data, scale. = T )
+
+summary.PCA.JDRS <- function(x){
+  sum_JDRS <- summary(x)$importance
+  sum_JDRS[1, ] <- sum_JDRS[1, ]^2
+  attr(sum_JDRS, "dimnames")[[1]][1] <- "Eigenvals (Variance)"
+  sum_JDRS
+}
+
+round(summary.PCA.JDRS(comp1), 2)
+#round(comp1$rotation, 2)
+
+screeplot(comp1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Transformed WB2013 Data")
+
+parallelplot <- function(comp){
+  if (dim(comp$x)[1] > 1000 || length(comp$sdev) > 100) {
+    print ("Sorry, this only works for n < 1000 and p < 100")
+    stop()
+  }
+  #if (round(length(comp$sdev)) < round(sum(comp$sdev^2))) {
+  #    print ("Sorry, this only works for analyses using the correlation matrix")
+  #    stop()
+  # }
+  
+  parallelanal <- parallel(dim(comp$x)[1], length(comp$sdev))
+  print(parallelanal)
+  calclim <- min(10, length(comp$sdev))
+  eigenvalues <- (comp$sdev^2)[1:calclim]
+  limits <- as.matrix(parallelanal[,2:3])
+  limits <- limits[complete.cases(limits)]
+  ymax <- range(c(eigenvalues),limits)
+  plot(parallelanal$pcompnum, eigenvalues, xlab="Principal Component Number",
+       ylim=c(ymax), ylab="Eigenvalues and Thresholds",
+       main="Scree Plot with Parallel Analysis Limits",type="b",pch=15,lwd=2, col="red")
+  #lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="red",pch=16,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="green",pch=17,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,3], type="b",col="blue",pch=18,lwd=2)
+  #legend((calclim/2),ymax[2],legend=c("Eigenvalues","Stick Method","Longman Method",
+  # "Allen Method"),  pch=c(15:18), col=c("black","red","green","blue"),lwd=2)
+  legend((calclim/2), ymax[2], legend=c("Eigenvalues","Longman Method","Allen Method"), 
+         pch = c(16:18), col= c("red","green","blue"), lwd=2)
+}
+parallelplot(comp1)
+
+```
+*Based on the scree plot and parallel analysis, it suggests that we should use roughly 2 latent factors in our analysis - there is a slight elbow at 3 on the scree plot and the eigenvalue line on our parallel analysis chart is right above the cutoff. Our principal analysis shows that the first component explains roughly 71% of the variance while the second component adds about 12% of explained variance for a culmulative total of approximately 0.83.*
+
+```{r}
+fact1 <- factanal(data, factors = 2)
+fact2 <- fa(data, nfactors = 2, fm = "pa")
+fact3 <- fa(data, nfactors = 2, SMC = FALSE, fm = "pa")
+
+repro1 <- fact1$loadings%*%t(fact1$loadings)
+resid1 <- fact1$cor - repro1
+len <- length(resid1[upper.tri(resid1)])
+paste0(round(sum(rep(1, len)[abs(resid1[upper.tri(resid1)])>0.05])/len*100),"%")
+
+repro2 <- fact2$loadings%*%t(fact2$loadings)
+resid2 <- cor(data)-repro2
+len <- length(resid2[upper.tri(resid2)])
+paste0(round(sum(rep(1, len)[abs(resid2[upper.tri(resid2)])>0.05])/len*100),"%")
+
+repro3 <- fact3$loadings%*%t(fact3$loadings)
+resid3 <- cor(data)-repro3
+len <- length(resid3[upper.tri(resid3)])
+paste0(round(sum(rep(1, len)[abs(resid3[upper.tri(resid3)])>0.05])/len*100),"%")
+```
+*Above we conducted three extraction methods: maximum likelihood, principal axis factoring, and iterative PCA (1,2, and 3 respectively). We then calculated the number of residuals greater than a cutoff (0.05) to test the accuracy of each of these methods. This was done by calculating the residual correlation matrix (the difference between our observed correlations and the re-produced ones) and then determining the percentage of residuals that were above 0.05: this was 24% for maximum likelihood, 31% for PAF and 29% for iterative PCA. This indicates that maximum likelihood is the best extraction method for our data since it least explained correlation left after modeling based on its factors.*
+
+```{r}
+(fact_final <- factanal(data, factors = 2, rotation = "varimax"))
+fa_result <- fa(data, nfactors = 2, rotate = "quartimax", fm = "ml")
+print(fa_result$loadings, digits = 3, cutoff = 0.3)
+
+plot(fact_final$loadings, pch = 18, col = 'red')
+abline(h = 0)
+abline(v = 0)
+text(fact_final$loadings, labels = names(data), cex = 0.8)
+
+plot(fa_result$loadings, pch = 18, col = 'blue')
+abline(h = 0)
+abline(v = 0)
+text(fa_result$loadings, labels = names(data), cex = 0.8)
+```
+*We identified maximum likelihood to be the most robust extraction method - estimating the factor loadings by maximizing the likelihood of observing our sample correlation matrix. We tested both varimax and quartimax rotations. Varimax rotations work by making each factor load strongly on a set of different variables (helping to distinguish our factors) while quartimax rotations makes each variable load strongly on one factor, ignoring if factors are blended. Using maximum likelihood with a varimax rotation for 2 factors, the first factor has significant loadings on human inequality coefficient, overall loss, gender inequality, which are all metrics relating to measurment of equality in a country. In contrast, the second factor has relatively high loadings in HDI, GNI per capita, and CO2 emissions, which hint at being more general indicators for development. A quartimax rotation gave us a starkly different result with high loadings on nearly every variable for the first factor apart from the female and male labor force participation while the second factor was just composed of human inequality and overall loss. This suggests under a quartimax rotation, the first factor comprises most of the variability (using all the indicators) while the second factor is the less over variance that was not captured.* 
+
+*Looking at our loading plots, the plot using the varimax rotation indicates 3 distinct clusters - the one in the top right (negative in factor 1 and positive in factor 2) captures wealth/development in relation to inequality while the cluster in the bottom right (with positive loading in factor 1 and weak loadings in factor 2) likely point to a measure of inequality. The 2 variables in the middle (female and male labor force) have weak loadings in both suggesting they do not contribute significantly to either factor. The rough U shape from our plot using a quartimax rotation corroborates our findings, as the variables on the left are associated with negative factors of development and the variables on the right positive factors of development, with the labor force participation variables having weak loadings overall.*
+
+*Overall, our data was satisfactory for factor analysis. We identified two significant factors, using parallel analysis and a scree plot. After testing three different extraction methods (maximum likelihood, principal axis factoring, and iterative PCA) based on the residual correlation matrix, we identified maximum likeihood to be the best. Running both varimax and quartimax rotations and looking at the loading plots helping provide interpretation for our factors. Overall using our analysis from the varimax rotation, factor 1 appears to be a measure of overall inequality in a country (positive meaning more inequality and vice versa) while factor 2 is a measurment of overall development.*
