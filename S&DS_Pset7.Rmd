@@ -1,12 +1,20 @@
 ---
-title: "S&DS363_Pset7"
-output: html_document
-date: "2025-04-13"
+title: 'S&DS 363 Problem Set 7: Factor Analysis'
+author: "Franklin Wu and Teresa Nguyen"
+date: "2025-04-17"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Human Development Index Factor Analysis
+
+Factor analysis is a statistical method used to examine a set of variables (indicators) and identify underlying relationships among them. The idea is that certain groups of indicators may be correlated because they are all influenced by some common, unobserved factors or constructs. By analyzing the correlation matrix of these indicators, we can uncover the presence of these latent factors and gain insight into their characteristics. In this homework, we will perform a factor analysis on the Human Development Index (HDI).
 
 ### Data Cleaning and Useful Packages
 
@@ -19,9 +27,11 @@ library(EFAtools)
 
 Always need to start with this first. Read in Data, choose the columns that best fit our needs, and rename the columns.
 
-```{r}
-data <- read.csv("/Users/franklinwu/Desktop/Sophomore/S&DS 363/Human Development Index - Full.csv")
+```{r, include=FALSE}
+data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
+```
 
+```{r}
 # Based on going through the Kaggle dataset and choosing the most relevant features
 data <- data[, c(
   "Country",
@@ -62,7 +72,14 @@ colnames(data) <- c(
   "CO2_Emissions_percapita_2021"
 )
 
-data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021")] <- lapply(data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "CO2_Emissions_percapita_2021" )], log)
+data[c("GNI_Per_Capita_2021", "Gender_Dev_Index_2021", 
+       "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", 
+       "CO2_Emissions_percapita_2021")] <- lapply(data[c("GNI_Per_Capita_2021", 
+                                                         "Gender_Dev_Index_2021", 
+                                                         "Maternal_Mortality_Rate_2021", 
+                                                         "Adolescent_Birth_Rate_2021", 
+                                                         "CO2_Emissions_percapita_2021" )], 
+                                                  log)
 
 rownames(data) <-data[,1]
 data <- data[ , c("HDI_2021",
@@ -83,22 +100,40 @@ data <- data[ , c("HDI_2021",
 data <- na.omit(data)
 ```
 
+### Correlation Matrix
+
+The correlation matrix is a key diagnostic tool in factor analysis, used to assess whether a common or latent factor structure might exist among a set of variables. In this example, we examined the raw correlations and visualized them using a correlation plot:
 
 ```{r}
 #Examine raw correlations
 round(cor(data),2)
 
 #Get correlation plot
-corrplot.mixed(cor(data), lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .5, tl.pos = "lt", tl.cex = .7, p.mat = cor.mtest(data, conf.level = .95)$p, sig.level = .05)
+corrplot.mixed(cor(data), lower.col = "black", upper = "ellipse", 
+               tl.col = "black", number.cex = .5, tl.pos = "lt", 
+               tl.cex = .7, p.mat = cor.mtest(data, conf.level = .95)$p, 
+               sig.level = .05)
 
 
 ```
-*Factor analysis assumes that there are strong correlations among the variables (shared variance) as these clusters of high correlations implies that there is a latent structure to our data that can be explained by different factors. Based on our correlation (and respective correlation plot) there appears to be strong correlations, both positive and negative, among our variables. The exception is "female labor force participation", which has less statistically significant correlations and weaker correlations, in terms of magnitude. According to the plot, life expectancy has strong correlations with maternal mortality, GNI per capita and Adolescent birth rate while male labor force, female labor force, and gender development index.*
+
+Factor analysis assumes that variables share common variance such as they cluster together based on high correlations, indicating the presence of underlying latent factors that explain the patterns in our data.
+
+Based on our correlation and respective correlation plot, there appears to be strong correlations, both positive and negative, which suggests the presence of latent structures. For example, life expectancy is highly positively correlated with GNI per capita, mean years of schooling, and HDI, and strongly negatively correlated with maternal morality, adolescent birth rate, and overall loss, which supports the idea of a common development or health-related factor.
+
+One exception is "female labor force participation", which has less statistically significant correlations and weaker correlations, in terms of magnitude, which may show that it does not align with the latent dimensions identified.  While life expectancy appears strongly connected to several development indicators, male and female labor force participation, along with the gender development index, show a more ambiguous relationship with the core structure of the data.
+
+### KMO 
+
+The Kaiser-Meyer-Olkin (KMO) statistic is a measure of sampling adequacy that evaluates the proportion of variance among variables that might be common variance. It indicates how suitable the data is for factor analysis by assessing the homogeneity of variables. Higher KMO values suggest that the variables share enough common variance to justify the use of factor analysis. 
 
 ```{r}
 KMO(as.matrix(data))
 ```
-*Our data had an overall KMO of 0.858 and received a rating of "meritorious". This suggests that our variables have a good amount of shared variance that can be explained by latent factors, making our dataset suitable for factor analysis. Moreover, our individual KMO values for most of our variables are relatively charge, which suggests our selection of indicators is valid.*
+
+Our data had an overall KMO of 0.858 and received a rating of "meritorious". This suggests that our variables have a substantial amount of shared variance that can be explained by latent factors, making our dataset suitable for factor analysis. Moreover, our individual KMO values for most of our variables are relatively charge, which suggests our selection of indicators is valid.
+
+### Scree Plots and Parallel Analysis
 
 ```{r}
 comp1 <- prcomp(data, scale. = T )
@@ -147,7 +182,9 @@ parallelplot <- function(comp){
 parallelplot(comp1)
 
 ```
-*Based on the scree plot and parallel analysis, it suggests that we should use roughly 2 latent factors in our analysis - there is a slight elbow at 3 on the scree plot and the eigenvalue line on our parallel analysis chart is right above the cutoff. Our principal analysis shows that the first component explains roughly 71% of the variance while the second component adds about 12% of explained variance for a culmulative total of approximately 0.83.*
+Based on the scree plot and parallel analysis, it suggests that we should use roughly 2 latent factors in our analysis - there is a slight elbow at 3 on the scree plot and the eigenvalue line on our parallel analysis chart is right above the cutoff. Our principal analysis shows that the first component explains roughly 71% of the variance while the second component adds about 12% of explained variance for a cumulative total of approximately 0.83.
+
+### Series of Factor analyses
 
 ```{r}
 fact1 <- factanal(data, factors = 2)
@@ -169,7 +206,9 @@ resid3 <- cor(data)-repro3
 len <- length(resid3[upper.tri(resid3)])
 paste0(round(sum(rep(1, len)[abs(resid3[upper.tri(resid3)])>0.05])/len*100),"%")
 ```
-*Above we conducted three extraction methods: maximum likelihood, principal axis factoring, and iterative PCA (1,2, and 3 respectively). We then calculated the number of residuals greater than a cutoff (0.05) to test the accuracy of each of these methods. This was done by calculating the residual correlation matrix (the difference between our observed correlations and the re-produced ones) and then determining the percentage of residuals that were above 0.05: this was 24% for maximum likelihood, 31% for PAF and 29% for iterative PCA. This indicates that maximum likelihood is the best extraction method for our data since it least explained correlation left after modeling based on its factors.*
+Above, we applied three extraction methods: maximum likelihood, principal axis factoring, and iterative PCA (methods 1, 2, and 3, respectively). We then evaluated the accuracy of each method by calculating the number of residual correlations greater than a cutoff value of 0.05. This involved computing the residual correlation matrix (the difference between the observed correlations and the reproduced ones) and determining the percentage of residuals exceeding the threshold. The results were 24% for maximum likelihood, 31% for principal axis factoring, and 29% for iterative PCA. These findings suggest that maximum likelihood is the best extraction method for our data, as it leaves the least unexplained correlation after modeling based on its factors.
+
+### Extraction Methods, Varimax, and Quartimax
 
 ```{r}
 (fact_final <- factanal(data, factors = 2, rotation = "varimax"))
@@ -186,8 +225,11 @@ abline(h = 0)
 abline(v = 0)
 text(fa_result$loadings, labels = names(data), cex = 0.8)
 ```
-*We identified maximum likelihood to be the most robust extraction method - estimating the factor loadings by maximizing the likelihood of observing our sample correlation matrix. We tested both varimax and quartimax rotations. Varimax rotations work by making each factor load strongly on a set of different variables (helping to distinguish our factors) while quartimax rotations makes each variable load strongly on one factor, ignoring if factors are blended. Using maximum likelihood with a varimax rotation for 2 factors, the first factor has significant loadings on human inequality coefficient, overall loss, gender inequality, which are all metrics relating to measurment of equality in a country. In contrast, the second factor has relatively high loadings in HDI, GNI per capita, and CO2 emissions, which hint at being more general indicators for development. A quartimax rotation gave us a starkly different result with high loadings on nearly every variable for the first factor apart from the female and male labor force participation while the second factor was just composed of human inequality and overall loss. This suggests under a quartimax rotation, the first factor comprises most of the variability (using all the indicators) while the second factor is the less over variance that was not captured.* 
 
-*Looking at our loading plots, the plot using the varimax rotation indicates 3 distinct clusters - the one in the top right (negative in factor 1 and positive in factor 2) captures wealth/development in relation to inequality while the cluster in the bottom right (with positive loading in factor 1 and weak loadings in factor 2) likely point to a measure of inequality. The 2 variables in the middle (female and male labor force) have weak loadings in both suggesting they do not contribute significantly to either factor. The rough U shape from our plot using a quartimax rotation corroborates our findings, as the variables on the left are associated with negative factors of development and the variables on the right positive factors of development, with the labor force participation variables having weak loadings overall.*
+We identified maximum likelihood to be the most robust extraction method and we estimated the factor loadings by maximizing the likelihood of observing our sample correlation matrix. We tested both varimax and quartimax rotations. 
 
-*Overall, our data was satisfactory for factor analysis. We identified two significant factors, using parallel analysis and a scree plot. After testing three different extraction methods (maximum likelihood, principal axis factoring, and iterative PCA) based on the residual correlation matrix, we identified maximum likeihood to be the best. Running both varimax and quartimax rotations and looking at the loading plots helping provide interpretation for our factors. Overall using our analysis from the varimax rotation, factor 1 appears to be a measure of overall inequality in a country (positive meaning more inequality and vice versa) while factor 2 is a measurment of overall development.*
+Varimax rotations work by making each factor load strongly on a set of different variables, helping to distinguish our factors. Quartimax rotations makes each variable load strongly on one factor, ignoring if factors are blended. Using maximum likelihood with a varimax rotation for 2 factors, the first factor has significant loadings on human inequality coefficient, overall loss, gender inequality, which are all metrics relating to measurment of equality in a country. In contrast, the second factor has relatively high loadings in HDI, GNI per capita, and CO2 emissions, which hint at being more general indicators for development. A quartimax rotation gave us a vastly different result with high loadings on nearly every variable for the first factor apart from the female and male labor force participation while the second factor was just composed of human inequality and overall loss. This suggests under a quartimax rotation, the first factor comprises most of the variability (using all the indicators) while the second factor is the less over variance that was not captured.
+
+Looking at our loading plots, the plot using the varimax rotation indicates 3 distinct clusters. The one in the top right-negative in factor 1 and positive in factor 2-captures wealth/development in relation to inequality, while the cluster in the bottom right-with positive loading in factor 1 and weak loadings in factor 2-likely point to a measure of inequality. The 2 variables in the middle (female and male labor force) have weak loadings in both, suggesting they do not contribute significantly to either factor. The rough U shape from our plot using a quartimax rotation corroborates our findings, as the variables on the left are associated with negative factors of development and the variables on the right positive factors of development, with the labor force participation variables having weak loadings overall.
+
+Overall, our data was suitable for factor analysis. We identified two significant factors, using parallel analysis and a scree plot. After testing three different extraction methods, maximum likelihood, principal axis factoring, and iterative PCA, and based on the residual correlation matrix, we identified maximum likeihood to be the best. Running both varimax and quartimax rotations and looking at the loading plots helped provide interpretation for our factors. Overall, using our analysis from the varimax rotation, factor 1 appears to be a measure of overall inequality in a country (positive meaning more inequality and vice versa) while factor 2 is a measurment of overall development.
