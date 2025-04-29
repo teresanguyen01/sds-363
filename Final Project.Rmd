@@ -1,26 +1,36 @@
 ---
-title: 'Final Project'
+title: "Worlds Apart: A Multivariate Exploration of Global Development and Inequality"
 author: "Franklin Wu and Teresa Nguyen"
-date: "2025-04-09"
+date: "`r Sys.Date()`"
 output:
-  word_document: default
-  html_document: default
-  pdf_document: default
+  word_document:
+    toc: false
+    number_sections: false
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    latex_engine: xelatex
+    keep_tex: true
 ---
 
 ```{r setup, include=FALSE, echo = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-**Introduction**
+# Introduction
 
-<!-- ![World Map of Countries by HDI]("../../Documents/sds-363/HDI2022Incrimental.svg.png") -->
+![World Map of Countries by HDI](../../Documents/sds-363/HDI2022Incrimental.svg.png)
 
 Our project utilizes the 2021 Human Development Index (HDI) dataset sourced from Kaggle. This dataset includes key measures of each country's achievements in health, education, and standard of living which are critical dimensions of overall development. HDI is widely used by the United Nations, policymakers, and academics to assess development progress, prioritize aid, tailor policy responses, and explore the connections between development and societal outcomes. In addition, multinational corporations often reference HDI metrics when shaping market entry strategies, with higher scores suggesting more stable and opportunistic markets.
 
 We selected this dataset for multivariate analysis for several key reasons. First, it offers global coverage across nearly all countries and regions, and it is timely, reflecting data from the past four years. Additionally, HDI captures multiple aspects of development, allowing us to examine the relationships between economic, social, and health factors simultaneously. This makes it well-suited for multivariate analysis, as we aim to uncover underlying patterns and drivers of human development. Lastly, the project's findings have meaningful policy implications, which are particularly interesting to us given our respective backgrounds in healthcare engineering and economics, and our shared interest for data analysis, policy, and real-world events.
 
-**Design and Primary Questions**
+# Design and Primary Questions
 
 Our analysis utilizes three primary multivariate methods, supported by supplementary techniques: Principal Component Analysis (PCA), Cluster Analysis, and Discriminant Analysis.
 
@@ -30,7 +40,7 @@ Using Cluster Analysis, we aim to answer: *"Based on key developmental metrics, 
 
 Lastly, through Discriminant analysis, we explore: *"How accurately can we predict a country's geographic region based on a subset of developmental characteristics?"* We will assess multivariate normality, perform Linear Discriminant Analysis (LDA), Quadratic Discriminant Analysis (QDA), and Stepwise Discriminant Analysis, evaluate classification accuracy, and derive and interpret the discriminant functions in the context of our HDI dataset.
 
-**Description of Variables**
+# Data and Variables
 
 | **Variable**                   | **Type**       | **Description**                                                                                  |
 |----------------------------------|----------------|--------------------------------------------------------------------------------------------------|
@@ -53,7 +63,7 @@ Lastly, through Discriminant analysis, we explore: *"How accurately can we predi
 | CO2_Emissions_percapita_2021     | Continuous     | Carbon dioxide emissions per capita (metric tons).                                               |
 
 
-## Data Initialization
+# Plots and Transformations
 
 ```{r, echo = FALSE}
 data <- read.csv("../../Documents/sds-363/Human Development Index - Full.csv")
@@ -66,9 +76,6 @@ colnames(data) <- c("Country", "Region", "HDI_Rank_2021", "HDI_2021", "Life_Expe
 # our data frame should only include complete cases
 data <- data[complete.cases(data), ]
 ```
-
-
-**Plots and Transformations**
 
 We began our initial analysis of the data using scatterplots and heatmaps to assess linearity, correlations, and the overall suitability of the data for multivariate methods. Additionally, we checked for the presence of outliers and non-linear patterns.
 
@@ -90,16 +97,15 @@ corrplot.mixed(
 
 chart.Correlation(data[, -c(1:3)])
 ```
-
 Based on the correlation plots, there are strong positive correlations between variables such as HDI, Life Expectancy, Mean Years of Schooling, and GNI per Capita, all above 0.75. Likewise, variables such as the Gender Inequality Index and Human Inequality Coefficient are strongly negatively correlated with HDI and schooling variables. These strong relationships suggest a shared structure in the data, making PCA appropriate.
 
 In examining scatterplots, most relationships appear linear; however, certain relationships, such as between GNI per Capita and Maternal Mortality Rate, show signs of non-linearity. This suggests that transformations (ex: a log transformation) could be beneficial.
 
 Regarding distributions, variables such as HDI, Life Expectancy, and Labour Force Participation appear approximately normally distributed, while variables like GNI per Capita and CO₂ Emissions per Capita are heavily right-skewed. We may consider applying transformations to these skewed variables before proceeding.
 
-### Multivariate Normality Check and Transformations
+## Multivariate Normality Check and Transformations
 
-```{r, echo = FALSE, message=FALSE, warning=FALSE}
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
 library(MASS)
 library(car)   
 data1 <- as.matrix(data[, -c(1:3)])  
@@ -113,13 +119,13 @@ theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(dat
 qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
        main = "Chi-Square Q-Q Plot for Multivariate Normality",
        xlab = "Theoretical Quantiles",
-       ylab = "Observed Mahalanobis Distances")
+       ylab = "Observed Mahalanobis Distances",
+)
 
 # MAKE chi-square quantile plot
 #library(heplots)
 #cqplot(data[, -c(1:3)], main = "World Bank Data")
 ```
-
 Based on the Chi-square Q-Q plot of Mahalanobis distances, several observations deviate substantially from the expected linear trend, particularly in the upper quantiles. This upward deviation (heavy-tailed or right-skewed pattern) suggests that the data may not satisfy the assumption of multivariate normality. This is especially important for methods such as Linear Discriminant Analysis (LDA), which assumes multivariate normality within each group. To address this issue, we applied log transformations to selected skewed variables (as shown below) in an effort to improve the distributional properties and better meet the assumptions of our multivariate methods.
 
 ```{r, warning=FALSE, echo = FALSE}
@@ -143,14 +149,13 @@ data[c(
 
 chart.Correlation(data[, -c(1:3)])
 ```
-
 We applied log transformations to the following variables: GNI per Capita, Gender Development Index, Maternal Mortality Rate, Adolescent Birth Rate, and CO₂ Emissions per Capita. These variables were initially right-skewed and showed non-linear relationships with other variables, which could impact the validity of multivariate techniques that assume linearity and normality.
 
 After transformation, the distributions of these variables appear more symmetric and approximately normal, as seen in the updated scatterplot matrix. Relationships between variables also appear more linear, with tighter and more consistent correlation patterns. These improvements enhance the interpretability of our multivariate methods, particularly PCA, clustering, and discriminant analysis, by aligning better with their underlying statistical assumptions.
 
-***Principal Component Analysis (PCA)***
+# Principal Component Analysis (PCA)
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 data1 <- as.matrix(data[, -c(1:3)])  
 
 center <- colMeans(data1)  # Mean vector
@@ -164,23 +169,21 @@ qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
        xlab = "Theoretical Quantiles",
        ylab = "Observed Mahalanobis Distances")
 ```
-
 After applying log transformations to variables with non-normal distributions, the updated Chi-square Q-Q plot shows an improvement. Most points now lie closer to the theoretical quantile line and fall within the confidence bounds, indicating better alignment with multivariate normality. While a few observations (notably cases 176 and 192) still appear as multivariate outliers and curve upward, the overall distribution more closely resembles that of a multivariate normal distribution.
 
 This is crucial for Principal Component Analysis (PCA), which assumes linear relationships and benefits from underlying multivariate normality to meaningfully reduce dimensionality. The Mahalanobis distances now largely conform to the chi-square distribution, supporting the appropriateness of using PCA on the transformed data.
 
-### Correlation Analysis and PCA Suitability
+## Correlation Analysis and PCA Suitability
 
 For our next step, we created correlation plots to determine correlation coefficients and correlations. We order it based on first principal component to identify the correlated groups and analyze whether PCA is a suitable method. 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 corrplot(cor(data[ ,-c(1:3)]), method="number", order="FPC", tl.cex = .5, 
          number.cex = .3)
 corrplot(cor(data[ ,-c(1:3)]),method = "ellipse", order="FPC", tl.cex = .5)
 
 dim(data)
 ```
-
 To assess whether Principal Component Analysis (PCA) is appropriate for our dataset, we examined the correlation structure among the continuous variables. The correlation plots, ordered by the first principal component, showed many strong relationships, both positive and negative, indicating substantial shared variance across variables which is a key condition for effective PCA.
 
 Several variables displayed strong positive correlations. For example, the Overall Loss and Gender Inequality Index had a correlation of 0.88, as did Adolescent Birth Rate and Human Inequality Coefficient. The Gender Inequality Index was also highly correlated with Adolescent Birth Rate (r = 0.81). 
@@ -188,7 +191,6 @@ Several variables displayed strong positive correlations. For example, the Overa
 In contrast, we observed strong negative correlations between Mean Years of Schooling and the Human Inequality Coefficient (r = -0.89), between Gender Inequality and Life Expectancy (r = -0.85), and between Human Inequality and Life Expectancy (r = -0.85). These relationships suggest that many variables are capturing overlapping information, which PCA can help summarize efficiently by reducing the dataset to a smaller set of uncorrelated components.
 
 Our dataset consists of 150 complete observations and 13 continuous variables (after excluding three categorical ones), resulting in a sample size more than ten times larger than the number of variables. This satisfies a common rule of thumb for PCA suitability. Given the strong correlations and adequate sample size, we conclude that PCA is an appropriate method for exploring and simplifying the structure of this dataset.
-
 
 ```{r, echo = FALSE, message=FALSE, results='hide'}
 
@@ -211,24 +213,24 @@ round(summary.PCA.JDRS(pc1),2)
 | Proportion of Variance | 0.71 | 0.12 | 0.06 | 0.04 | 0.03 | 0.02 | 0.01 | 0.01 | 0.01 | 0.00 | 0.00 | 0.00 | 0    |
 | Cumulative Proportion  | 0.71 | 0.83 | 0.89 | 0.92 | 0.95 | 0.97 | 0.98 | 0.98 | 0.99 | 1.00 | 1.00 | 1.00 | 1.00 |
 
+---
 
 Based on the summary of principal components, the first component explains approximately 71% of the total variance, while the second explains an additional 12%, bringing the cumulative explained variance to 83% with just two components. Using the common threshold of 80% total variance explained as a criterion for component retention, we find that the first two principal components are sufficient to capture the majority of the dataset’s variability.
 
 Additionally, applying the eigenvalue-greater-than-1 rule (Kaiser criterion), we would again retain only the first two components, which have eigenvalues of 9.21 and 1.60, respectively. All remaining components have eigenvalues below 1 and contribute minimally to the overall variance. Overall, these results suggest that retaining two principal components is sufficient for our analysis, allowing us to reduce dimensionality while still capturing the majority of the variance present in the dataset.
 
-### Scree plots
+## Scree plots
 
 We used a scree plot to visualize the eigenvalues associated with each principal component. The plot shows a clear "elbow" at the second principal component, where the steep drop in variance levels off. This suggests that the majority of the variance is explained by the first two components, with a sharp decline afterward.
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
           main = "Scree Plot of Raw WB Data")
 ```
 
 According to the elbow method, we typically retain components up to the point where the curve starts to flatten, which in this case includes the first and second principal components. While there is a very slight slope change near PC3, it is not substantial enough to justify its inclusion. Therefore, the scree plot supports retaining the first two components for further analysis, consistent with both the cumulative variance explained and the eigenvalue-greater-than-one rule.
 
-
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 parallel<-function(n,p){
   
   if (n > 1000 || p > 100) {
@@ -307,24 +309,43 @@ parallelplot <- function(comp){
 
 parallelplot(pc1)
 ```
-
 Since parallel analysis assumes that the data is suitable for PCA, it is a valid method to determine the number of principal components to retain. After applying log transformations, our data shows approximately linear relationships among variables and improved normality, although strict normality is not required for PCA.
 
 Based on the results of parallel analysis, we should retain two principal components, as the observed eigenvalues for the first two components exceed the corresponding random thresholds (Longman and Allen methods). After the second component, the observed eigenvalues fall below the simulated thresholds, indicating that additional components do not explain more variance than would be expected by chance. Therefore, the parallel analysis supports retaining two principal components for further analysis.
 
-### Interpretation of PCA
+## Interpretation of PCA
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 # principal component loadings to indicate how much of each original var.
 # contributes to each principal component
 round(pc1$rotation,2)
 ```
 
+### Principal Components 
+
+| Variable                         | PC1   | PC2   | PC3   | PC4   | PC5   | PC6   | PC7   | PC8   | PC9   | PC10  | PC11  | PC12  | PC13  |
+|----------------------------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|--------|
+| HDI_2021                         | 0.32  | -0.01 | -0.04 | -0.06 | 0.16  | 0.06  | 0.34  | 0.08  | -0.06 | -0.12 | 0.03  | 0.85  | 0.00   |
+| Life_Expectancy_2021             | 0.30  | 0.00  | -0.25 | 0.08  | 0.11  | -0.50 | 0.32  | 0.47  | -0.18 | 0.39  | -0.13 | -0.24 | -0.02  |
+| Mean_Years_Schooling_2021        | 0.31  | -0.01 | 0.10  | -0.15 | -0.18 | 0.47  | 0.53  | -0.36 | 0.05  | 0.38  | -0.07 | -0.24 | -0.01  |
+| GNI_Per_Capita_2021              | 0.31  | 0.01  | -0.04 | -0.09 | 0.39  | 0.14  | 0.20  | 0.10  | -0.02 | -0.70 | 0.10  | -0.41 | 0.01   |
+| Gender_Dev_Index_2021            | 0.20  | -0.39 | 0.62  | -0.34 | 0.13  | -0.46 | -0.06 | -0.23 | 0.02  | 0.05  | 0.12  | -0.01 | 0.00   |
+| Human_Inequality_Coeff_2021      | -0.31 | 0.05  | 0.02  | 0.08  | 0.51  | 0.01  | 0.17  | -0.10 | 0.22  | 0.16  | 0.04  | 0.01  | -0.72  |
+| Overall_Loss_2021                | -0.31 | 0.05  | 0.02  | 0.07  | 0.54  | 0.00  | 0.17  | -0.09 | 0.23  | 0.19  | 0.01  | 0.00  | 0.69   |
+| Gender_Inequality_Index_2021     | -0.31 | 0.11  | 0.01  | -0.26 | -0.04 | 0.07  | 0.18  | 0.12  | -0.51 | 0.09  | 0.71  | -0.03 | 0.01   |
+| Maternal_Mortality_Rate_2021     | -0.32 | -0.04 | 0.10  | -0.15 | 0.11  | 0.01  | 0.13  | -0.14 | -0.64 | -0.12 | -0.63 | 0.02  | 0.00   |
+| Adolescent_Birth_Rate_2021       | -0.29 | -0.05 | 0.22  | -0.47 | -0.20 | 0.14  | 0.19  | 0.60  | 0.38  | -0.06 | -0.20 | 0.00  | -0.01  |
+| Female_Labour_Force_2021         | -0.04 | -0.72 | 0.15  | 0.46  | 0.06  | 0.35  | 0.00  | 0.29  | -0.15 | 0.07  | 0.07  | -0.02 | 0.01   |
+| Male_Labour_Force_2021           | -0.10 | -0.55 | -0.67 | -0.42 | 0.00  | -0.07 | -0.02 | -0.21 | 0.10  | -0.02 | 0.02  | 0.01  | 0.00   |
+| CO2_Emissions_percapita_2021     | 0.29  | 0.10  | -0.02 | -0.35 | 0.39  | 0.37  | -0.56 | 0.20  | -0.15 | 0.33  | -0.07 | 0.01  | -0.01  |
+
+---
+
 Based on our analysis, we decided to retain the first two principal components. The first principal component appears to represent a general measure of overall well-being and development. It is characterized by strong positive loadings on variables such as HDI, Life Expectancy, and Mean Years of Schooling, which are key benchmarks for assessing a country's development. Conversely, this component shows large negative loadings on variables related to inequality, including the Human Inequality Coefficient, Overall Loss, Gender Inequality Index, and Maternal Mortality Rate. These negative loadings reflect dimensions associated with lower levels of development, suggesting that PC1 captures a spectrum ranging from highly developed to less developed countries.
 
 The second principal component appears to capture aspects of gender equality. It is characterized by large loadings for the Gender Development Index, Female Labour Force Participation, and Male Labour Force Participation. Together, these variables reflect patterns related to gender-based disparities in economic participation and development. This component helps distinguish countries not just by their overall level of development but specifically by their gender equality dynamics, providing an important complementary dimension to the first principal component.
 
-### Visualizations and Validations of PCA Results
+## Visualizations and Validations of PCA Results
 
 We want to see how observations of countries are distributed among the two principal components and identify outliers, which deviate from multivariate normal distributions of scores.
 
@@ -364,7 +385,6 @@ ciscoreplot<-function(x, comps, namevec){
 ciscoreplot(pc1, c(1, 2), data[, 1])
 
 ```
-
 The score plot visualizes the distribution of countries based on the first and second principal components, with a 95% confidence ellipse overlaid to help identify potential outliers and assess the overall spread of observations. There do not appear to be any distinct clusters or groupings within the plot based on the two retained components.
 
 Two countries, Yemen and Madagascar, fall outside the 95% confidence ellipse. Madagascar deviates slightly, primarily along the first principal component axis, suggesting modest differences in the factors captured by PC1. In contrast, Yemen lies well outside the ellipse along the second principal component axis, indicating a more substantial deviation related to the factors captured by PC2, possibly linked to gender equality dynamics.
@@ -374,7 +394,6 @@ Our interpretation of the 95% confidence ellipse is appropriate, as the assumpti
 ```{r, echo = FALSE}
 biplot(pc1, choices = c(1, 2), pc.biplot = TRUE, cex = 0.7)
 ```
-
 The biplot shows the distribution of countries based on their principal component scores for the first and second principal components. The arrows indicate the strength (magnitude) of each variable's contribution, while their direction illustrates how the variables contribute to the principal components. Similar to the earlier score plot, there are no clear distinct clusters or trends among the countries based on their principal component scores. However, the directions of the arrows reinforce our earlier interpretation of the principal components.
 
 The second principal component is primarily influenced by variables such as female and male labor force participation and the Gender Development Index, whose arrows point upward along PC2. In contrast, the first principal component is influenced by development-related variables, such as GNI per capita and mortality rate, which point in opposite directions, reflecting their negative correlation. When two arrows are approximately perpendicular, it indicates that the corresponding variables have smaller loadings for that particular principal component, as observed in the biplot.
@@ -387,7 +406,9 @@ Finally, we created a score plot with a 95% confidence ellipse and the biplot to
 
 Overall, PCA successfully reduced the dataset to two interpretable components, capturing major patterns in development and gender equality for further analysis.
 
-***Cluster Analysis***
+# Cluster Analysis
+
+Having identified key dimensions of variation in the data through Principal Component Analysis, we next turn to cluster analysis to explore whether natural groupings of countries emerge based on these underlying developmental patterns.
 
 ```{r, echo = FALSE, warning=FALSE}
 library(aplpack)
@@ -398,9 +419,9 @@ library(amap)
 library(PerformanceAnalytics)
 ```
 
-### Distance Metrics & Possible Transformations
+## Distance Metrics & Possible Transformations
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 #one way to standardize data
 wbnorm <- data[, c("HDI_2021", "Life_Expectancy_2021", 
                    "Mean_Years_Schooling_2021", "GNI_Per_Capita_2021", 
@@ -415,13 +436,13 @@ dim(wbnorm)
 
 ```
 
-We chose Euclidean distance as the most appropriate metric for our cluster analysis because our dataset consists of continuous, standardized variables. Euclidean distance is ideal for measuring straight-line similarity in multivariate numeric data, and standardization ensures that all variables contribute equally to the distance calculations.
+The dimensions of the standardized data set is 150 by 11. We chose Euclidean distance as the most appropriate metric for our cluster analysis because our dataset consists of continuous, standardized variables. Euclidean distance is ideal for measuring straight-line similarity in multivariate numeric data, and standardization ensures that all variables contribute equally to the distance calculations.
 
 Other distance metrics were considered but found unsuitable for this context. For example, the Jaccard distance is designed for binary or presence-absence data, which does not apply here, and Manhattan distance, which measures absolute differences, is less effective when variables are on different scales or when squared differences (as in Euclidean) better capture dissimilarity.
 
 To support the use of Euclidean distance, we applied preprocessing steps such as standardizing all variables, log-transforming skewed indicators, and assigning country names as row labels for interpretability. These steps support the reliability of clustering results by ensuring comparability and minimizing the influence of outliers or variable scale.
 
-### Hierarchical Cluster Analysis - Euclidean and Manhattan
+## Hierarchical Cluster Analysis - Euclidean and Manhattan
 
 ```{r, echo = FALSE}
 #Euclidean and complete
@@ -452,9 +473,9 @@ In contrast, the second dendrogram applies Manhattan distance with Ward’s meth
 
 The third dendrogram uses maximum distance with single linkage, which merges clusters based on the smallest distance between any two points (nearest-neighbor). This method yielded a much less structured result: Yemen again appeared as a distinct outlier, while most countries were merged into a single large, elongated cluster. This reflects a known limitation of single linkage; it is prone to "chaining," where clusters grow by progressively adding the closest individual points, leading to less meaningful groupings.
 
-### Number of Groups
+## Number of Groups
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide', message=FALSE}
 source("https://raw.githubusercontent.com/jreuning/sds363_code/refs/heads/main/HClusEval3.R.txt")
 #Call the function
 hclus_eval(wbnorm, dist_m = 'euclidean', clus_m = 'complete', plot_op = T, 
@@ -464,10 +485,9 @@ To determine the optimal number of clusters, we examined many metrics. The red l
 
 The second plot, displaying cluster distances (CD), also reveals a visible elbow at around four clusters, with a less pronounced inflection near the sixth. Taking all these indicators into account, these patterns suggest that the most appropriate number of clusters is four, balancing between model simplicity and explanatory effectiveness.
 
+## K-Means Clustering
 
-### K-Means Clustering
-
-```{r, echo = FALSE}
+```{r, echo = FALSE, message=FALSE, results='hide', warning='FALSE'}
 #kdata is just normalized input dataset
 kdata <- wbnorm
 n.lev <- 15  #set max value for number of clusters k
@@ -614,7 +634,7 @@ Taken together, these plots indicate that four clusters best capture the underly
 
 To visualize these groupings, we plotted the K-means clusters in principal component space (using the first and second components), as well as in discriminant analysis space, both of which show clear separation among the identified clusters.
 
-### Plots in DA and PCA Space
+## Plots in DA and PCA Space
 
 ```{r, echo = FALSE}
 clust1 <- hclust(dist1, method = "ward.D")
@@ -629,7 +649,7 @@ plotcluster(wbnorm, cuts, main = "Five Cluster Solution in DA Space",
 The cluster plots in both discriminant analysis (DA) space and principal component analysis (PCA) space, based on Euclidean distance and Ward’s method, show a clear separation among five distinct groups. While our earlier metrics (such as SSE and RSQ) suggested four clusters as optimal, these visualizations provide additional justification for considering a fifth cluster, as it separates a subgroup more clearly than in previous methods. Together, these plots offer strong visual support for the underlying structure revealed through hierarchical clustering.
 
 
-```{r, echo = FALSE, result="hide"}
+```{r, echo = FALSE, results='hide', warning=FALSE, message=FALSE}
 for (i in 1:4){
   print(paste("Countries in Cluster ", i))
   print(rownames(wbnorm)[cuts == i])
@@ -641,7 +661,7 @@ pca$rotation  # This shows the loadings
 
 ```
 
-#### **Cluster Memberships
+### Cluster Memberships
 
 **Cluster 1**: Angola, Burundi, Benin, Burkina Faso, Central African Republic, Ivory Coast, Cameroon, The Democratic Republic of the Congo, Congo, Ethiopia, Ghana, Guinea, Gambia, Guinea-Bissau, Haiti, Kenya, Cambodia, Lao, Liberia, Lesotho, Madagascar, Mali, Mozambique, Mauritania, Malawi, Namibia, Niger, Nigeria, Nepal, Papua New Guinea, Rwanda, Sudan, Senegal, Sierra Leone, South Sudan, Eswatini, Chad, Togo, Tanzania, Uganda, Yemen, Zambia, Zimbabwe
 
@@ -652,7 +672,7 @@ pca$rotation  # This shows the loadings
 **Cluster 4**: Bangladesh, Bosnia and Herzegovina, Belize, Bolivia, Brazil, Bhutan, Colombia, Dominican Republic, Algeria, Ecuador, Egypt, Gabon, Guatemala, Guyana, Honduras, Indonesia, India, Iran, Iraq, Jamaica, Jordan, Kyrgyzstan, Saint Lucia, Sri Lanka, Morocco, Moldova, Maldives, Mexico, Nicaragua, Oman, Pakistan, Peru, Philippines, Paraguay, El Salvador, Sao Tome and Principe, Suriname, Tajikistan, Turkmenistan, Timor-Leste, Tonga, Tunisia, Turkey, Venezuela, Viet Nam, Samoa, South Africa
 
 
-#### **PCA Loadings Table**
+### **PCA Loadings Table**
 
 | Variable                        | PC1   | PC2   | PC3   | PC4   | PC5   | PC6   | PC7   | PC8   | PC9   | PC10  | PC11  |
 |-------------------------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
@@ -674,11 +694,11 @@ Cluster 1 (e.g. Uganda, Nigeria, Sudan) consists of countries with low Human Dev
 
 Overall, the clustering results fit the context of our dataset, effectively grouping countries by their development stage, from low HDI to highly developed, with transitional and intermediate categories in between.
 
+# Discriminant Analysis 
+
 Building on the insights from our cluster analysis, we now apply discriminant analysis to formally assess how well countries can be classified into the identified clusters based on key development indicators.
 
-***Discriminant Analysis***
-
-```{r, warning = FALSE, echo = FALSE}
+```{r, warning = FALSE, echo = FALSE, results='hide', message=FALSE}
 library(MASS)
 library(biotools)
 library(klaR)
@@ -694,13 +714,13 @@ library(heplots)
 data <- data[complete.cases(data) & data$Region != "", ]
 ```
 
-### Analysis of Multivariate Normality and Similar Covariances Matrices
+## Analysis of Multivariate Normality and Similar Covariances Matrices
 
-#### Chi-Square Quantile Plots 
+### Chi-Square Quantile Plots 
 
 We will first create **Chi-Square quantile plots** to evaluate multivariate normality within each group. 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 cqplot <- function(data1, main) {
   library(car)  # Load the car package for qqPlot function
   
@@ -731,15 +751,14 @@ cqplot(data[data$Region == "SSA", columns], main = "Sub-Saharan Africa (SSA)")
 par(mfrow = c(1,1))
 
 ```
-Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data roughly follows a linear trend, indicating the assumption of multivariate normality holds across all groups. Most observed Mahalanobis distances align well with the theoretical quantities and remain within the confidence bounds.
 
-However, there does appear to be more deviations from normality at upper quartiles, such as in LAC and ECA, while some points slightly exceed the theoretical line. While these deviations suggest the presence of outliers or skewedness, they are still within the acceptable limits, so the normality assumption is not strongly violated.
+Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data broadly follows a linear pattern, supporting the assumption of multivariate normality. Most Mahalanobis distances fall within the confidence bands and align with theoretical quantiles. Minor deviations (particularly in LAC and ECA at the upper end) suggest some skewness or outliers, but these remain within acceptable limits, indicating the assumption is reasonably met.
 
-#### Covariances Matrices - Box's M and Matrices
+### Covariances Matrices - Box's M and Matrices
 
 We then create covariances matrices to see similarity and use the Box's M statistic. The Box's M is used to test equality of entire covariances matrices as equal covariance matrices are an assumption of discriminant analysis.
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 
 library(heplots)
 # covariance matrices for all the regions 
@@ -792,11 +811,112 @@ boxM_result <- boxM(data[, columns], data$Region)
 print(boxM_result)
 
 ```
-*Looking at our covariance matrices and the ratio of the largest to smallest elements of these entries, our covariance matrices seem to be pretty similar considering the ratio of our entries are mostly all less than 4. However, Box's M-test gave us a p-value of 0.0002912, which suggests that are covariance matrices are statistically significantly different. This is likely dude to our relatively large sample size (over 80 observations) and high degrees of freedom (df = 75), making the test highly sensitive to small deviations.*
 
-#### Covariances Matrices - Testing Out Transformations
+#### Covariance Matrix for AS
 
-```{r, echo = FALSE}
+|                              | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|----------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.013694 | 0.427615              | 0.096428            | -0.015685                    | 0.242178                |
+| **Life_Expectancy_2021**     | 0.427615 | 18.114258             | 2.736922            | -0.485981                    | -2.376042               |
+| **GNI_Per_Capita_2021**      | 0.096428 | 2.736922              | 0.724487            | -0.116899                    | 2.479616                |
+| **Gender_Inequality_Index_2021** | -0.015685 | -0.485981          | -0.116899           | 0.026635                     | -0.324820               |
+| **Male_Labour_Force_2021**   | 0.242178 | -2.376042             | 2.479616            | -0.324820                    | 43.662425               |
+
+#### Covariance Matrix for EAP
+
+|                              | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|----------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.010326 | 0.461431              | 0.077397            | -0.013114                    | 0.167917                |
+| **Life_Expectancy_2021**     | 0.461431 | 26.286844             | 3.553860            | -0.723669                    | 14.505800               |
+| **GNI_Per_Capita_2021**      | 0.077397 | 3.553860              | 0.702113            | -0.115110                    | 3.102854                |
+| **Gender_Inequality_Index_2021** | -0.013114 | -0.723669          | -0.115110           | 0.030603                     | -1.091291               |
+| **Male_Labour_Force_2021**   | 0.167917 | 14.505800             | 3.102854            | -1.091291                    | 132.896234              |
+
+#### Covariance Matrix for ECA
+
+|                              | HDI_2021    | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|-------------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.001910896 | 0.06411962             | 0.02053046           | -0.001981117                  | 0.1231734                |
+| **Life_Expectancy_2021**     | 0.064119622 | 7.17273815             | 0.49854108           | -0.089885482                  | 1.7190016                |
+| **GNI_Per_Capita_2021**      | 0.020530458 | 0.49854108             | 0.25486658           | -0.022694789                  | 1.1242792                |
+| **Gender_Inequality_Index_2021** | -0.001981117 | -0.08988548        | -0.02269479          | 0.006063533                   | 0.0718288                |
+| **Male_Labour_Force_2021**   | 0.123173400 | 1.71900155             | 1.12427922           | 0.071828800                   | 72.4331507               |
+
+### Covariance Matrix for LAC
+
+|                              | HDI_2021    | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|-------------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.005331190 | 0.2238682              | 0.03662808           | -0.005627305                  | -0.1279995               |
+| **Life_Expectancy_2021**     | 0.223868210 | 15.3937319             | 1.26601139           | -0.281140140                  | -5.6723883               |
+| **GNI_Per_Capita_2021**      | 0.036628084 | 1.2660114              | 0.32828311           | -0.034869754                  | -0.9132111               |
+| **Gender_Inequality_Index_2021** | -0.005627305 | -0.2811401        | -0.03486975          | 0.008853293                   | 0.1395699                |
+| **Male_Labour_Force_2021**   | -0.127999477 | -5.6723883            | -0.91321113          | 0.139569945                   | 38.0523866               |
+
+
+#### Covariance Matrix for SA
+
+|                              | HDI_2021   | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|------------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.00727927 | 0.3506931              | 0.04009037           | -0.00389563                  | -0.3572342               |
+| **Life_Expectancy_2021**     | 0.35069305 | 22.2630247             | 2.09550899           | -0.24886939                  | -16.1445661              |
+| **GNI_Per_Capita_2021**      | 0.04009037 | 2.0955090              | 0.27242726           | -0.02633946                  | -2.7243650               |
+| **Gender_Inequality_Index_2021** | -0.00389563 | -0.2488694        | -0.02633946          | 0.00446341                   | 0.2586214                |
+| **Male_Labour_Force_2021**   | -0.35723423 | -16.1445661           | -2.72436505          | 0.25862145                   | 33.0509540               |
+
+#### Covariance Matrix for SSA
+
+|                              | HDI_2021   | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|------------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 0.00792696 | 0.2165756              | 0.06348408           | -0.00433864                  | -0.24966281              |
+| **Life_Expectancy_2021**     | 0.21657563 | 18.4367141             | 1.29347208           | -0.19591199                  | 3.33330870               |
+| **GNI_Per_Capita_2021**      | 0.06348408 | 1.2934721              | 0.60667845           | -0.02939709                  | -3.21657126              |
+| **Gender_Inequality_Index_2021** | -0.00433864 | -0.1959120        | -0.02939708          | 0.00540900                   | -0.03226349              |
+| **Male_Labour_Force_2021**   | -0.24966281 | 3.3333087              | -3.21657126          | -0.03226349                  | 93.1587479               |
+
+#### Ratio of Largest to Smallest Covariance Elements for AS vs EAP
+
+|                              | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|----------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 1.3      | 1.1                    | 1.2                  | 1.2                           | 1.4                      |
+| **Life_Expectancy_2021**     | 1.1      | 1.5                    | 1.3                  | 1.5                           | -6.1                     |
+| **GNI_Per_Capita_2021**      | 1.2      | 1.3                    | 1.0                  | 1.0                           | 1.3                      |
+| **Gender_Inequality_Index_2021** | 1.2  | 1.5                    | 1.0                  | 1.1                           | 3.4                      |
+| **Male_Labour_Force_2021**   | 1.4      | -6.1                   | 1.3                  | 3.4                           | 3.0                      |
+
+#### Ratio of Largest to Smallest Covariance Elements for ECA vs LAC
+
+|                              | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|----------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 2.8      | 3.5                    | 1.8                  | 2.8                           | -1.0                     |
+| **Life_Expectancy_2021**     | 3.5      | 2.1                    | 2.5                  | 3.1                           | -3.3                     |
+| **GNI_Per_Capita_2021**      | 1.8      | 2.5                    | 1.3                  | 1.5                           | -1.2                     |
+| **Gender_Inequality_Index_2021** | 2.8  | 3.1                    | 1.5                  | 1.5                           | 1.9                      |
+| **Male_Labour_Force_2021**   | -1.0     | -3.3                   | -1.2                 | 1.9                           | 1.9                      |
+
+
+#### Ratio of Largest to Smallest Covariance Elements for SA vs SSA
+
+|                              | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|------------------------------|----------|------------------------|----------------------|-------------------------------|--------------------------|
+| **HDI_2021**                 | 1.1      | 1.6                    | 1.6                  | 1.1                           | 1.4                      |
+| **Life_Expectancy_2021**     | 1.6      | 1.2                    | 1.6                  | 1.3                           | -4.8                     |
+| **GNI_Per_Capita_2021**      | 1.6      | 1.6                    | 2.2                  | 1.1                           | 1.2                      |
+| **Gender_Inequality_Index_2021** | 1.1  | 1.3                    | 1.1                  | 1.2                           | -8.0                     |
+| **Male_Labour_Force_2021**   | 1.4      | -4.8                   | 1.2                  | -8.0                          | 2.8                      |
+
+**Box's M-test for Homogeneity of Covariance Matrices**: Chi-Sq (approx.) = 124.47, df = 75, p-value = 0.0002912
+
+---
+
+Looking at the covariance matrices and the ratios of the largest to smallest elements, most of the ratios are under 4, which suggests that the covariance structures across the groups are fairly similar.
+
+However, the results of Box’s M-test tell a different story statistically. The p-value of 0.0002912, combined with 75 degrees of freedom, suggests that the covariance matrices are statistically significantly different. This result is likely driven by the relatively large sample size (over 80 observations) and the high degrees of freedom, which make Box’s M-test highly sensitive to even small deviations from homogeneity.
+
+Overall, while Box’s M-test suggests statistically significant differences, the examination of the covariance matrices through the ratio analysis implies that the deviations may not be severe. In this case, it would be reasonable to proceed with caution, recognizing that the statistical test is detecting small differences that may not be practically important for the purposes of the analysis.
+
+### Covariances Matrices - Testing Transformations
+
+```{r, echo = FALSE, results='hide'}
 library(heplots)
 
 data_log_transformed <- data.frame(data) # Creates a deep copy
@@ -849,15 +969,40 @@ if (log_det_differences < 1) {
 }
 
 ```
-*The covariance matrices exhibit large ratios, suggesting a violation of multivariate normality. Applying log transformations did not fully correct the issue, as significant differences remain in the log determinants across groups, with a maximum-minimum difference of 8.37.*
 
-*Additionally, Box’s M-test remains highly significant (p-value = 2.456e-13), reinforcing that the covariance matrices are statistically different. While Box’s M-test is known to be sensitive to large sample sizes, the large spread in log determinants suggests that this result reflects true differences rather than mere statistical sensitivity.*
+### Log Determinants Before and After Log Transformation
 
-*Since LDA assumes similarity of covariance matrices, it may not be suitable in this case. Given these results, QDA may be a better alternative as it does not assume equal covariances.*
+| Region | Log Determinant (Before) | Log Determinant (After) |
+|--------|--------------------------|--------------------------|
+| SSA    | -6.621008                | -24.70886                |
+| ECA    | -9.883551                | -27.27433                |
+| LAC    | -8.614515                | -27.19976                |
+| SA     | -12.49148                | -31.75363                |
+| EAP    | -5.454744                | -23.37775                |
+| AS     | -8.310669                | -26.94162                |
 
-#### Matrix Plots
+**Max-Min Difference (After Log Transformation):** `8.38`
 
-To determine what our data looks like with two variables at a time. 
+### Box's M Test Summary
+
+| Metric                | Value       |
+|-----------------------|-------------|
+| Chi-Squared (approx.) | 200.15      |
+| Degrees of Freedom    | 75          |
+| p-value               | 2.456e-13   |
+| Interpretation        | Significant differences in log determinants |
+
+--- 
+
+The covariance matrices exhibit substantial differences, as indicated by the large ratios and the spread in the raw and log-transformed determinants. Although a log transformation was applied to stabilize the covariance structures, significant differences remained. The maximum-minimum difference in log determinants after transformation was 8.37, suggesting that the groups' covariance matrices are still quite different.
+
+Additionally, Box’s M-test yielded a highly significant result (Chi-Square = 200.15, p-value = 2.456e-13), confirming the statistical difference between the covariance matrices. While Box’s M-test is known to be sensitive to large sample sizes, the substantial spread in the log determinants suggests that these differences are real and not created by sample size.
+
+Since Linear Discriminant Analysis (LDA) relies on the assumption of equal covariance matrices across groups, it may not be appropriate in this case. Given the observed differences, Quadratic Discriminant Analysis (QDA), which allows for unequal covariance matrices, would be a more suitable method moving forward.
+
+### Matrix Plots
+
+We use matrix plots to determine what our data looks like with two variables at a time. 
 
 ```{r, echo = FALSE}
 
@@ -881,13 +1026,15 @@ for (pair in region_pairs) {
 }
                           
 ```
-*The matrix plots show that the selected variables serve as strong discriminators between the two groups. Many variables show a clear direction of deviation, which suggests stronger results when using discriminant analysis. However, there are some overlaps between the groups that are visible in certain pairs, which may impact performance. Based on these results, applying QDA should be good, and we will also use Wilks Lambda for best feature selection as well.*
+The scatterplot matrices for each regional comparison (AS vs EAP, ECA vs LAC, SA vs SSA) demonstrate that the selected variables—such as HDI, Life Expectancy, GNI per Capita, and Gender Inequality Index are effective in differentiating between the groups. Several variable pairs show distinct clustering by region, which supports the application of discriminant techniques.
 
-### Discriminant Analysis
+However, noticeable overlaps remain in some dimensions. For instance, in SA vs SSA, the overlap in Male Labour Force and GNI Per Capita may reduce classification precision. These overlaps suggest that while group means differ, group variances and covariances may also vary significantly—reinforcing the appropriateness of Quadratic Discriminant Analysis (QDA), which does not assume equal covariance matrices.
 
-#### Linear Discriminant Analysis
+Given these visual patterns and earlier statistical tests (ex: Box’s M), QDA appears to be a more robust choice than LDA. Furthermore, applying Wilks’ Lambda for feature selection is a possible next step, as it can identify the most discriminative variables while accounting for multivariate relationships.
 
-```{r, echo = FALSE}
+### Linear Discriminant Analysis
+
+```{r, echo = FALSE, results='hide'}
 library(MASS)
 
 hdi_lda <- lda(data[, log_transform_columns], grouping = data$Region)
@@ -900,26 +1047,67 @@ lda_acc <- round(sum(diag(prop.table(ctraw))), 2)
 print(paste("LDA Accuracy:", lda_acc))
 
 ```
-*LDA was applied since our groups have relatively similar covariance structures.The overall accuracy of LDA when it comes to classification is approximately 0.72 for the given variables, showing that the model was performing reasonably well. However, misclassifications are prevalent, particularly for AS (4/9 = 44%), EAP (1/13 = 8%), and SA (2/8 = 25%), which suggests overlapping feature distributions among these regions. Regions like ECA (14/16 = 87.5%), LAC (21/25 = 84%), and SSA (38/40 = 95%) had high accuracy. However, Box's M test showed that our covariance matrices are statistically different, suggesting that linear discriminant analysis' assumption of equal covariances does not hold. Quadratic discriminant analysis may be more fitting given that it allows for different covariance matrices.*
+#### Confusion Matrix (LDA)
 
-#### Quadratic Discrminant Analysis 
+| Actual \ Predicted | AS | EAP | ECA | LAC | SA | SSA |
+|--------------------|----|-----|-----|-----|----|-----|
+| **AS**             |  4 |   1 |   1 |   2 |  0 |   1 |
+| **EAP**            |  2 |   1 |   1 |   8 |  0 |   1 |
+| **ECA**            |  0 |   0 |  14 |   2 |  0 |   0 |
+| **LAC**            |  0 |   1 |   1 |  21 |  0 |   2 |
+| **SA**             |  0 |   1 |   0 |   4 |  2 |   1 |
+| **SSA**            |  0 |   0 |   0 |   2 |  0 |  38 |
+
+**LDA Accuracy**: 0.72
+
+---
+
+Linear Discriminant Analysis (LDA) was applied under the assumption of relatively similar covariance structures across groups. The model achieved an overall classification accuracy of approximately 72%, which indicates a reasonably good performance given the number of classes. However, the confusion matrix reveals notable misclassifications—particularly for AS (only 4 out of 9 correctly classified, or 44%), EAP (1 out of 13, ~8%), and SA (2 out of 8, or 25%). These misclassifications point to overlapping distributions and potentially insufficient separation in the selected feature space for those specific regions.
+
+In contrast, the model performed quite well in classifying ECA (87.5% accuracy), LAC (84%), and SSA (95%), indicating clearer group separation in those cases. Nonetheless, the statistically significant result from Box’s M test (p < 0.001) suggests that the assumption of homogeneity of covariance matrices required for LDA is violated. Given this, Quadratic Discriminant Analysis (QDA), which is ok with differing covariance structures, may provide a better fit for this data and potentially yield improved classification accuracy.
+
+### Quadratic Discrminant Analysis 
 
 We decided to use Quadratic Discrminant analysis as it provides a way to determine group means for each variable and understand how different regions are separated based on their feature distributions. 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 (hdi.disc <- qda(data[, columns], grouping = data$Region))
 
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
 round(sum(diag(prop.table(ctrawQ))),2)
 ```
 
-*The prediction accuracy of QDA is 0.84, which is higher than the prediction accuracy of linear discriminant analysis of 0.72. The improvement suggests that quadratic discriminant analysis is more appropriate as it does not assume equal covariance matrices across groups. As mentioned earlier, the Box's M test showed significant differences in covariance matrices so QDA is most likely capturing the true variance patterns more effectively than LDA. While the accuracy gain is marginally better (0.12), QDA having the higher prediction accuracy and its ability to handle differing covariance structures makes it the better choice.*
+#### Prior Probabilities of Groups
 
-#### Stepwise Discriminant Analysis 
+| Region | Prior Probability |
+|--------|-------------------|
+| AS     | 0.0811            |
+| EAP    | 0.1171            |
+| ECA    | 0.1441            |
+| LAC    | 0.2252            |
+| SA     | 0.0721            |
+| SSA    | 0.3604            |
 
-Stepwise Linear Discriminant Analysis
+#### Group Means
 
-```{r, echo = FALSE}
+| Region | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|--------|----------|-----------------------|----------------------|-------------------------------|-------------------------|
+| AS     | 0.6750   | 71.17846              | 8.97426              | 0.48089                       | 68.80567                |
+| EAP    | 0.7054   | 71.96891              | 9.15219              | 0.39446                       | 70.46269                |
+| ECA    | 0.7753   | 72.39879              | 9.56266              | 0.20175                       | 62.88800                |
+| LAC    | 0.7288   | 71.78611              | 9.35190              | 0.38328                       | 73.43976                |
+| SA     | 0.6761   | 72.02194              | 8.97659              | 0.45138                       | 72.39963                |
+| SSA    | 0.5304   | 61.10532              | 7.94792              | 0.55965                       | 72.05178                |
+
+**Prediction Accuracy of QDA**: 0.84
+
+---
+
+The prediction accuracy of QDA is 0.84, which is higher than the prediction accuracy of linear discriminant analysis of 0.72. The improvement suggests that quadratic discriminant analysis is more appropriate as it does not assume equal covariance matrices across groups. As mentioned earlier, the Box's M test showed significant differences in covariance matrices so QDA is most likely capturing the true variance patterns more effectively than LDA. While the accuracy gain is marginally better (0.12), QDA having the higher prediction accuracy and its ability to handle differing covariance structures makes it the better choice.*
+
+### Stepwise Discriminant Analysis 
+
+```{r, echo = FALSE, warning=FALSE, results='hide'}
 library(klaR)  # Load klaR package for stepclass()
 
 stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + 
@@ -932,10 +1120,36 @@ stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 +
 stepwise_lda
 stepwise_lda$result.pm
 
+```
+#### Stepwise Classification Summary
 
+- Method: `lda`
+- 111 observations of 5 variables across 6 classes
+- Stop criterion: improvement less than 5%
+
+#### Stepwise Accuracy by Variable
+| Step | Correctness Rate | Variables Included                          |
+|------|------------------|----------------------------------------------|
+| 1    | 0.56757          | Gender_Inequality_Index_2021                 |
+| 2    | 0.63964          | Gender_Inequality_Index_2021, Life_Expectancy_2021 |
+
+#### Final Model
+```r
+Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021
 ```
 
-*Using stepwise LDA, gender inequality and life expectancy were the key discriminators and the classification accuracy was 63.96%, still lower than QDA's accuracy of 84%. Because LDA assumes equal covariance matrices and Box's M test confirmed significant covariance differences, the assumptions of LDA may not hold, so LDA would not be a good choice.* 
+| hr.elapsed | min.elapsed | sec.elapsed |
+|------------|-------------|-------------|
+| 0.000      | 0.000       | 0.843       |
+
+#### Final Results
+- Correctness rate: **0.6396**
+- Cross-validation rate: **0.6396396**
+- Apparent error rate: **0.3063063**
+
+---
+
+Using stepwise LDA, gender inequality and life expectancy were the key discriminators and the classification accuracy was 63.96%, still lower than QDA's accuracy of 84%. Because LDA assumes equal covariance matrices and Box's M test confirmed significant covariance differences, the assumptions of LDA may not hold, so LDA would not be a good choice.
 
 We will now use quadratic discriminant analysis. 
 
@@ -958,21 +1172,65 @@ partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021,
 
 ```
 
-*Using stepwise QDA, we identified the key discriminators being Gender Inequality Index and Life Expectancy for classifying regions. However, the final classification accuracy of stepwise QDA is 63.06%, which is lower than the full QDA's model's accuracy of 84%, suggesting that while these two groups contribute significantly to group separation, removing the other predictors may resulted in information loss, leading to decreased classification performance. Additionally, the apparent error rate of QDA is lower than LDA, showing that QDA is better at separating classes. Since QDA does not assume equal covariance matrices, our data is not multivariate normal, and Box's M test confirmed covariance differences, QDA remains the best model choice over LDA.*
+Using stepwise QDA, we identified the key discriminators being Gender Inequality Index and Life Expectancy for classifying regions. However, the final classification accuracy of stepwise QDA is 63.06%, which is lower than the full QDA's model's accuracy of 84%, suggesting that while these two groups contribute significantly to group separation, removing the other predictors may resulted in information loss, leading to decreased classification performance. Additionally, the apparent error rate of QDA is lower than LDA, showing that QDA is better at separating classes. Since QDA does not assume equal covariance matrices, our data is not multivariate normal, and Box's M test confirmed covariance differences, QDA remains the best model choice over LDA.
 
 ### Wilk's Lambda Test
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 data.manova <- manova(as.matrix(data[, columns]) ~ data$Region)
 summary.manova(data.manova, test = "Wilks")
 summary.aov(data.manova)
 ```
 
-*A Wilks' lambda of approximately 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05, and suggests that there is a statistically significant difference in the multivariate means between the regions. The strongest discriminators are Life Expectancy (p value 2.2e-16 and F-Statistic 34.7) and Gender Inequality Index (p value 2.2e-16 and F-Statistic 29.87), while Male Labor Force Participation is the weakest predictor. Since Wilks' Lamda is closer to 0, it indicates a strong group separation.*
+| Effect       | Wilks' Lambda | Approx. F | Num Df | Den Df | Pr(>F)   | Significance |
+|--------------|----------------|-----------|--------|--------|----------|---------------|
+| Region       | 0.14622        | 10.215    | 25     | 376.7  | < 2.2e-16 | ***           |
+| Residuals    |                |           |        |        |           |               |
+
+### Univariate ANOVA Tests (By Dependent Variable)
+
+#### HDI_2021
+
+| Effect    | Df | Sum Sq | Mean Sq | F Value | Pr(>F)   | Significance |
+|-----------|----|--------|---------|---------|----------|--------------|
+| Region    | 5  | 1.029  | 0.2057  | 28.795  | < 2.2e-16| ***          |
+| Residuals |105 | 0.750  | 0.0071  |         |          |              |
+
+#### Life_Expectancy_2021
+
+| Effect    | Df | Sum Sq | Mean Sq | F Value | Pr(>F)   | Significance |
+|-----------|----|--------|---------|---------|----------|--------------|
+| Region    | 5  | 2994.5 | 598.90  | 34.699  | < 2.2e-16| ***          |
+| Residuals |105 | 1812.3 | 17.26   |         |          |              |
+
+#### GNI_Per_Capita_2021
+
+| Effect    | Df | Sum Sq | Mean Sq | F Value | Pr(>F)    | Significance |
+|-----------|----|--------|---------|---------|-----------|--------------|
+| Region    | 5  | 48.096 | 9.6192  | 19.616  | 9.35e-14  | ***          |
+| Residuals |105 | 51.490 | 0.4904  |         |           |              |
+
+#### Gender_Inequality_Index_2021
+
+| Effect    | Df | Sum Sq | Mean Sq | F Value | Pr(>F)   | Significance |
+|-----------|----|--------|---------|---------|----------|--------------|
+| Region    | 5  | 1.6013 | 0.3203  | 29.866  | < 2.2e-16| ***          |
+| Residuals |105 | 1.1260 | 0.0107  |         |          |              |
+
+#### Male_Labour_Force_2021
+
+| Effect    | Df | Sum Sq | Mean Sq | F Value | Pr(>F)  | Significance |
+|-----------|----|--------|---------|---------|---------|--------------|
+| Region    | 5  | 1292.6 | 258.52  | 3.476   | 0.00601 | **           |
+| Residuals |105 | 7808.4 | 74.37   |         |         |              |
+
+---
+
+A Wilks' lambda of approximately 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05, and suggests that there is a statistically significant difference in the multivariate means between the regions. The strongest discriminators are Life Expectancy (p value 2.2e-16 and F-Statistic 34.7) and Gender Inequality Index (p value 2.2e-16 and F-Statistic 29.87), while Male Labor Force Participation is the weakest predictor. Since Wilks' Lamda is closer to 0, it indicates a strong group separation.
 
 ### Discriminant Functions Significance
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 lda_scores <- predict(hdi_lda)$x 
 
 # MANOVA with all 5 discriminant functions
@@ -990,13 +1248,57 @@ summary(lda_manova_3, test = "Wilks")
 hdi_lda
 ```
 
-*Of our 5 discriminant functions, the first and second discriminant function are the only ones that were statistically significant, meaning they play a significant role in distinguishing between the groups. To determine this, we conducted a stepwise Wilks' Lamda test, progressively assessing the significance of all five discriminant functions. First, we tested the significance of all five discriminant functions, which yielded a Wilks' Lambda of 0.146 and a p-value of <2.2e-16, which showed significant separation between groups. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statistically significant with a p-value of 2.16e-11, indicating that at least the first two discriminant functions were contributing meaningfully.*
+| Test Set | Effect       | Df  | Wilks' Lambda | Approx. F | Num Df | Den Df | Pr(>F)   | Significance |
+|----------|--------------|-----|----------------|-----------|--------|--------|----------|--------------|
+| **1**    | Region       | 5   | 0.14622        | 10.215    | 25     | 376.7  | < 2.2e-16 | ***          |
+|          | Residuals    | 105 |                |           |        |        |          |              |
+| **2**    | Region       | 5   | 0.41196        | 5.1997    | 20     | 339.25 | 2.16e-11 | ***          |
+|          | Residuals    | 105 |                |           |        |        |          |              |
+| **3**    | Region       | 5   | 0.90938        | 0.6646    | 15     | 284.74 | 0.8185   |              |
+|          | Residuals    | 105 |                |           |        |        |          |              |
 
-*However, when we further tested only the last three discriminant functions, the p-value was 0.8185, which is higher than our alpha of 0.05. This means we fail to reject the null hypothesis that at least one discriminant function is significant and all these three functions do not significantly improve group separation. As noted, it is evident that LD1 and LD2 are the primary drivers of group separation, whereas the last three functions add little explanatory power. This shows that reducing the model to just these two significant functions could simplify interpretation without compromising classification accuracy.*
+### Prior Probabilities of Groups
+
+| AS        | EAP       | ECA       | LAC       | SA        | SSA       |
+|-----------|-----------|-----------|-----------|-----------|-----------|
+| 0.08108108| 0.11711712| 0.14414414| 0.22522523| 0.07207207| 0.36036036|
+
+
+### LDA Group Means by Region
+
+| Region | HDI_2021 | Life_Expectancy_2021 | GNI_Per_Capita_2021 | Gender_Inequality_Index_2021 | Male_Labour_Force_2021 |
+|--------|----------|-----------------------|----------------------|-------------------------------|-------------------------|
+| AS     | 0.6750   | 71.1785               | 8.9743               | 0.4809                        | 68.8057                 |
+| EAP    | 0.7054   | 71.9689               | 9.1522               | 0.3945                        | 70.4627                 |
+| ECA    | 0.7753   | 72.3988               | 9.5627               | 0.2018                        | 62.8880                 |
+| LAC    | 0.7288   | 71.7861               | 9.3519               | 0.3833                        | 73.4398                 |
+| SA     | 0.6761   | 72.0219               | 8.9766               | 0.4514                        | 72.3996                 |
+| SSA    | 0.5304   | 61.1053               | 7.9479               | 0.5597                        | 72.0518                 |
+
+### LDA Coefficients of Linear Discriminants
+
+| Variable                      | LD1       | LD2       | LD3       | LD4       | LD5       |
+|------------------------------|-----------|-----------|-----------|-----------|-----------|
+| HDI_2021                     | -4.9858   | -6.2458   | -15.0668  | 16.8107   | 26.8922   |
+| Life_Expectancy_2021         | -0.1137   | 0.2686    | 0.2099    | -0.1412   | -0.0217   |
+| GNI_Per_Capita_2021          | 0.2929    | 1.2501    | 0.2284    | -0.4067   | -3.3737   |
+| Gender_Inequality_Index_2021 | 3.6743    | 12.7334   | -0.6259   | 6.5378    | 2.1942    |
+| Male_Labour_Force_2021       | 0.0229    | 0.0506    | -0.0946   | -0.0528   | 0.0124    |
+
+### Proportion of Trace (Discriminant Contributions)
+
+| LD1   | LD2   | LD3   | LD4   | LD5   |
+|-------|-------|-------|-------|-------|
+| 0.582 | 0.387 | 0.028 | 0.003 | 0.000 |
+
+
+Of our 5 discriminant functions, the first and second discriminant function are the only ones that were statistically significant, meaning they play a significant role in distinguishing between the groups. To determine this, we conducted a stepwise Wilks' Lamda test, progressively assessing the significance of all five discriminant functions. First, we tested the significance of all five discriminant functions, which yielded a Wilks' Lambda of 0.146 and a p-value of <2.2e-16, which showed significant separation between groups. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statistically significant with a p-value of 2.16e-11, indicating that at least the first two discriminant functions were contributing meaningfully.
+
+However, when we further tested only the last three discriminant functions, the p-value was 0.8185, which is higher than our alpha of 0.05. This means we fail to reject the null hypothesis that at least one discriminant function is significant and all these three functions do not significantly improve group separation. As noted, it is evident that LD1 and LD2 are the primary drivers of group separation, whereas the last three functions add little explanatory power. This shows that reducing the model to just these two significant functions could simplify interpretation without compromising classification accuracy.
 
 ### Regular & Leave-One-Out Classification
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='false'}
 # regular QDA Classification
 ctrawQ <- table(data$Region, predict(hdi.disc)$class)
 ctrawQ
@@ -1008,15 +1310,41 @@ ctCVQ <- table(data$Region, qda_cv_pred$class)
 ctCVQ
 round(sum(diag(prop.table(ctCVQ))),2)
 ```
-*The raw classification accuracy was 84%, while the cross-validation accuracy was 62%, indicating a decrease in predictive performance when tested on unseen data. The model performs well on the training data but struggles with generalization, which suggests overfitting, where the model captures noise rather than the true patterns in the data.*
 
-*When analyzing the confusion matrices, SSA had the highest classification accuracy, as most of its observations were correctly classified in both raw and cross-validated results (38 out of 41 in raw and 34 out of 41 in LOOCV). In contrast, regions such as AS, EAP, and LAC had a higher number of misclassifications. Additionally, EAP, LAC, and SA experienced significant accuracy losses, further supporting the overfitting hypothesis.*
+### Regular QDA Classification (Accuracy = 0.84)
 
-*Moreover, the 22% drop in accuracy from the raw method to cross-validation suggests that the latter may be too complex for this dataset, leading to overfitting.*
+|        | AS | EAP | ECA | LAC | SA | SSA |
+|--------|----|-----|-----|-----|----|-----|
+| **AS** | 5  | 0   | 0   | 3   | 0  | 1   |
+| **EAP**| 0  | 6   | 1   | 5   | 0  | 1   |
+| **ECA**| 0  | 0   | 15  | 1   | 0  | 0   |
+| **LAC**| 0  | 1   | 0   | 21  | 0  | 3   |
+| **SA** | 0  | 0   | 0   | 0   | 8  | 0   |
+| **SSA**| 0  | 0   | 0   | 1   | 1  | 38  |
+
+
+### Leave-One-Out Cross-Validation (LOOCV) QDA Classification (Accuracy = 0.62)
+
+|        | AS | EAP | ECA | LAC | SA | SSA |
+|--------|----|-----|-----|-----|----|-----|
+| **AS** | 3  | 1   | 0   | 4   | 0  | 1   |
+| **EAP**| 0  | 2   | 3   | 5   | 0  | 3   |
+| **ECA**| 0  | 0   | 12  | 4   | 0  | 0   |
+| **LAC**| 0  | 3   | 1   | 16  | 2  | 3   |
+| **SA** | 1  | 0   | 0   | 3   | 2  | 2   |
+| **SSA**| 1  | 1   | 0   | 2   | 2  | 34  |
+
+---
+
+The raw classification accuracy was 84%, while the cross-validation accuracy was 62%, indicating a decrease in predictive performance when tested on unseen data. The model performs well on the training data but struggles with generalization, which suggests overfitting, where the model captures noise rather than the true patterns in the data.
+
+When analyzing the confusion matrices, SSA had the highest classification accuracy, as most of its observations were correctly classified in both raw and cross-validated results (38 out of 41 in raw and 34 out of 41 in LOOCV). In contrast, regions such as AS, EAP, and LAC had a higher number of misclassifications. Additionally, EAP, LAC, and SA experienced significant accuracy losses, further supporting the overfitting hypothesis.
+
+The substantial drop in accuracy (22%) from the raw model to LOOCV suggests that although Quadratic Discriminant Analysis (QDA) captures detailed patterns within the training set, it may overfit when faced with new data. This result implies that model simplification (ex: feature selection or regularization) or collecting more data may help improve generalizability.
 
 ### Standardized Discriminant Coefficients
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 print("Raw (Unstandardized) Coefficients")
 round(hdi_lda$scaling,2)
 
@@ -1027,9 +1355,43 @@ print("Standardized Coefficients")
 hdi_lda_standardized <- lda(scale(data[, columns]), grouping = data$Region)
 print(round(hdi_lda_standardized$scaling, 2))
 ```
-*Analyzing our standardized coefficients, HDI, Life expectancy, and Gender Inequality appear to be our stronger discriminators while GNI per Capita (GNIpc) and Male Labor Force have weaker contributions. This aligns with our univariate comparisons, where although GNIpc and Male Labor Force were statistically significant, their F-values were lower compared to the other three variables, indicating a weaker impact on group differentiation.*
 
-*When looking at the magnitude of the coefficients for our discriminant functions, life expectancy had the largest coefficient overall in LD1, as well as large coefficients in LD2 and LD3. HDI has relatively large coefficients in LD3 and LD5, and life expectancy has large coefficients and strong influence in LD2 and LD3. These results show that socioeconomic and human development indicators play a greater role in distinguishing regions than economic metrics such as GNI per Capita or labor force participation.*
+### Raw (Unstandardized) Coefficients
+
+| Variable                     | LD1    | LD2    | LD3    | LD4    | LD5    |
+|-------------------------------|--------|--------|--------|--------|--------|
+| HDI_2021                     | -4.99  | -6.25  | -15.07 | 16.81  | 26.89  |
+| Life_Expectancy_2021         | -0.11  | 0.27   | 0.21   | -0.14  | -0.02  |
+| GNI_Per_Capita_2021          | 0.29   | 1.25   | 0.23   | -0.41  | -3.37  |
+| Gender_Inequality_Index_2021 | 3.67   | 12.73  | -0.63  | 6.54   | 2.19   |
+| Male_Labour_Force_2021       | 0.02   | 0.05   | -0.09  | -0.05  | 0.01   |
+
+### Normalized Coefficients
+
+| Variable                     | LD1    | LD2    | LD3    | LD4    | LD5    |
+|-------------------------------|--------|--------|--------|--------|--------|
+| HDI_2021                     | -0.13  | -0.16  | -0.38  | 0.43   | 0.69   |
+| Life_Expectancy_2021         | 0.00   | 0.01   | 0.01   | 0.00   | 0.00   |
+| GNI_Per_Capita_2021          | 0.01   | 0.03   | 0.01   | -0.01  | -0.09  |
+| Gender_Inequality_Index_2021 | 0.09   | 0.33   | -0.02  | 0.17   | 0.06   |
+| Male_Labour_Force_2021       | 0.00   | 0.00   | 0.00   | 0.00   | 0.00   |
+
+### Standardized Coefficients
+
+| Variable                     | LD1    | LD2    | LD3    | LD4    | LD5    |
+|-------------------------------|--------|--------|--------|--------|--------|
+| HDI_2021                     | -0.63  | -0.79  | -1.92  | 2.14   | 3.42   |
+| Life_Expectancy_2021         | -0.75  | 1.78   | 1.39   | -0.93  | -0.14  |
+| GNI_Per_Capita_2021          | 0.28   | 1.19   | 0.22   | -0.39  | -3.21  |
+| Gender_Inequality_Index_2021 | 0.58   | 2.00   | -0.10  | 1.03   | 0.35   |
+| Male_Labour_Force_2021       | 0.21   | 0.46   | -0.86  | -0.48  | 0.11   |
+
+
+Analyzing the standardized coefficients, HDI, Life Expectancy, and Gender Inequality Index emerge as the strongest discriminators between regions. In contrast, GNI per Capita and Male Labor Force Participation show weaker contributions. This pattern is consistent with our earlier univariate ANOVA comparisons, where although GNI per Capita and Male Labor Force were statistically significant, their F-values were notably lower compared to the other variables, indicating a weaker impact on group differentiation.
+
+Specifically, Life Expectancy exhibits the largest standardized coefficient in LD1 (-0.75) and substantial influence in LD2 and LD3, confirming its dominant role in separating groups. HDI also shows relatively large coefficients in LD3 and LD5, further reinforcing its importance. Gender Inequality Index displays strong contributions particularly in LD2 and LD4, supporting the finding that social development measures are key to regional differences.
+
+Overall, the results suggest that socioeconomic and human development indicators (such as life expectancy, HDI, and gender equality) are more critical in distinguishing regions than purely economic metrics like GNI per Capita or labor force participation rates. This finding implies that regional disparities are driven more by human development factors than by income measures alone, demonstrating the importance of policies focused on health, education, and social equity to address regional inequalities effectively.
 
 ### Score Plots
 
@@ -1059,11 +1421,13 @@ legend("topright", legend = region_names,
        pch = c(15:(15 + length(region_names))))
 ```
 
-*Countries in Sub Saharan Africa (SSA) stands out significantly along LD1 (x-axis), suggesting that this region is well-differentiated from others. On the other hand, Europe and Central Asia (ECA) forms a distinct cluster in the bottom left corner, primarily separated along LD2 (y-axis), which indicates that the ECA is differentiated from other regions primarily due to variations in Life Expectancy and Gender Inequality Index.*
+The LDA score plot clearly shows that countries in Sub-Saharan Africa (SSA) are well-separated from other regions along LD1, indicating that this region is uniquely characterized by the variables contributing to this axis—most notably HDI, Life Expectancy, and the Gender Inequality Index.
 
-*The other four regions-East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC)-have considerable overlap. This suggests that these regions share similar features concerning LD1 and LD2, making it more difficult to distinguish them based on these two dimensions alone, meaning that variation exists and these regions may have similar economic, social, or demographic structures in relation to the predictor variables.*
+In contrast, Europe and Central Asia (ECA) forms a distinct cluster in the lower-left quadrant, primarily separated along LD2. This suggests that ECA is differentiated based on Life Expectancy and Gender Inequality, which contribute strongly to this second discriminant function.
 
-*Additionally, when looking at LD1, SSA appears to separate itself primarily based on HDI, Life Expectancy, and the Gender Inequality Index, while ECA differentiates itself along LD2, driven largely by Life Expectancy and Gender Inequality. Furthermore, there are outliers, such as in the Americas, where some observations deviate from the main cluster, suggesting that certain countries in this group show unique features that differ from the general trends of their respective regions.*
+The remaining regions—East Asia & Pacific (EAP), South Asia (SA), Latin America & Caribbean (LAC), and the Americas (AS)—exhibit considerable overlap. This overlap suggests that these regions share similar profiles with respect to the predictor variables and are therefore less distinguishable using only the first two discriminant axes. It implies commonalities in socioeconomic or demographic characteristics.
+
+Additionally, there are some outliers, particularly in the Americas (AS), where a few countries deviate significantly from their regional cluster. These points may represent countries with atypical human development or inequality metrics, and could receive further investigation.
 
 ### LDA Partition Plot
 
@@ -1076,13 +1440,13 @@ partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021,
 
 ```
 
-*Looking at the partition plot, we can see more clearly how countries in SSA and ECA distinguish themselves, while the remaining regions overlap significantly, suggesting that they are less differentiated based on these two variables. This validates our conclusions from the previous analysis, as Gender Inequality and Life Expectancy were identified as significant contributors to both LD1 and LD2. SSA primarily occupies the lower right portion of the plot, whereas ECA is concentrated in the upper left. The substantial overlap among the other regions, particularly LAC, EAP, and AS, indicates that additional variables may be needed to improve classification accuracy between these groups.*
+Looking at the partition plot, we can see more clearly how countries in SSA and ECA distinguish themselves, while the remaining regions overlap significantly, suggesting that they are less differentiated based on these two variables. This validates our conclusions from the previous analysis, as Gender Inequality and Life Expectancy were identified as significant contributors to both LD1 and LD2. SSA primarily occupies the lower right portion of the plot, whereas ECA is concentrated in the upper left. The substantial overlap among the other regions, particularly LAC, EAP, and AS, indicates that additional variables may be needed to improve classification accuracy between these groups.
 
 ### K-Nearest Neighbors
 
 K-Nearest Neighbors (KNN) classifies data points based on the majority class of their closest k neighbors, with k=5 in this case. 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning=FALSE}
 
 library(class)
 
@@ -1111,13 +1475,106 @@ ggplot(data, aes(x = HDI_2021, y = Life_Expectancy_2021, color = Region)) +
 
 ```
 
-*In the plot, the color of each dot corresponds to the actual classification of the region, while the background grid represents the predicted classification for different areas of the feature space. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, indicating that countries with lower Human Development Index (HDI) and life expectancy are predominantly classified as SSA. This aligns with our prior analyses showing that SSA tends to have lower values for these indicators compared to other regions.*
+In this KNN classification plot, each dot represents the actual region classification of a country, while the background grid indicates the predicted region across the HDI and Life Expectancy feature space using the k-nearest neighbors method with $k=5$.
 
-*For other regions, there is considerable overlap, particularly among East Asia & Pacific (EAP), Europe & Central Asian (ECA), Latin America & the Caribbean (LAC), and South Asia (SA), suggesting that HDI and Life Expectancy alone may not be sufficient enough to classify these groups. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
+One clear observation is the tight clustering of Sub-Saharan African (SSA) countries in the lower-left quadrant of the plot. This indicates that countries with lower Human Development Index (HDI) and lower life expectancy are predominantly classified as SSA, which is consistent with our earlier findings.
+
+In contrast, the remaining regions, East Asia & Pacific (EAP), Europe & Central Asia (ECA), Latin America & Caribbean (LAC), and South Asia (SA), show substantial overlap. This suggests that HDI and life expectancy alone are insufficient for reliably distinguishing these regions from one another, likely due to shared or overlapping development characteristics.
+
+Another important pattern is the horizontal nature of the decision boundaries, implying that life expectancy plays a more dominant role than HDI in the KNN classification process for this dataset. Regions tend to shift classification along changes in life expectancy rather than HDI, further emphasizing its influence.
+
+# Bonus: Random Forest
+
+Random forest is a machine learning algorithm that uses decision trees to make predictions. It creates multiple decision trees and then combines their results to generate a final prediction. It feels suitable for predicting a country’s region based on its development indicators. An advantage of random forest is that it does not require assumptions of multivariate normality or equal covariance matrices—conditions that were previously shown to be violated by Box’s M test. Additionally, random forest can handle nonlinear relationships and rank variables by importance, indicating which variables best predict region.
+
+```{r, warning=FALSE, results='hide', echo=FALSE, message=FALSE}
+
+library(ggplot2)
+library(cowplot)
+library(randomForest)
+
+# head(data)
+
+set.seed(42)
+
+# check how many NAs there are --> if there are any --> impute
+sum(is.na(data))
+
+# default is 500
+rfModel <- randomForest(Region ~ ., data=data, ntree=500, proximity=TRUE, mtry=3)
+
+rfModel
+
+# data frame to format error rate for ggplot 2 --> see if 500 trees is enough  
+oob.error.data <- data.frame(
+  Trees = rep(1:nrow(rfModel$err.rate), times=7), 
+  Type = rep(c("OOB", "AS", "EAP", "ECA", "LAC", "SA", "SSA"), each=nrow(rfModel$err.rate)), 
+  Error = c(rfModel$err.rate[,"OOB"],
+            rfModel$err.rate[,"AS"],
+            rfModel$err.rate[,"EAP"],
+            rfModel$err.rate[,"ECA"],
+            rfModel$err.rate[,"LAC"],
+            rfModel$err.rate[,"SA"],
+            rfModel$err.rate[,"SSA"])
+)
+
+ggplot(data=oob.error.data, aes(x=Trees, y=Error)) + geom_line(aes(color=Type))
+
+oob.values <- numeric(10)
+
+for (i in 1:10)
+{
+  temp.model <- randomForest(Region ~ ., data=data, mtry=i, ntree=1000)
+  oob.values[i] <- temp.model$err.rate[nrow(temp.model$err.rate), 1]
+}
+oob.values
+
+```
+
+## Random Forest Results
+
+Type of random forest: classification  
+Number of trees: 500  
+No. of variables tried at each split (mtry): 3  
+
+OOB estimate of error rate: **32.43%**
 
 
-**Conclusion**
+### Confusion Matrix
 
-Based on our analysis, we uncovered some interesting findings relating to some of the underlying trends/patterns in our dataset based on the economic, social and environmental benchmarks of different countries. Through PCA, we settled on using two principle components to explain a significant portion of the variability in our data (roughly 78%): the first component was a general measure of overall well-being and development while the second component was a measurement of a country's gender inequality. In addition, we visualized our data, using these two components, and identified two outliers (based on a 95% confidence interval ellipse) to be Yemen and Madagascar. Next, we used discriminant analysis to unpack whether there existed natural clusters underlying our data. From using K-means clustering to Ward's method (with Euclidean distance), we identified 4 distinct clusters: the leftmost cluster distinguished itself as the group of countries with overall low HDI indicators while the rightmost cluster was composed of more developed countries with contradistinction high metrics of well-being. The other two clusters were more nuanced, but further analysis showed that one of these clusters appeared to be made up of countries that were transitioning to be more developed (such as China) while the other cluster was made of countries that were less developed and more varied along the second axis, indicating greater levels of inequality. For our final method, we were interested in determining whether a pre-defined grouping - namely, the geographic region - was an adequate discriminator based on developmental metrics. Using discriminant analysis, we found that Sub-Saharan Africa and Europe & Central Asia were well-differentiated from the other groups based on indicators relating to the general development of a country (life expectancy, GNIpc) and the overall inequality, while the other four regions were more clustered in the center suggesting they shared more commonality among those indicators which made it more difficult to distinguish based on those two discriminators alone. 
+| Actual \ Predicted | AS | EAP | ECA | LAC | SA | SSA | Class Error |
+|--------------------|----|-----|-----|-----|----|-----|--------------|
+| **AS**             |  5 | 0   | 1   | 0   | 1  | 2   | 0.44         |
+| **EAP**            |  0 | 1   | 2   | 6   | 3  | 1   | 0.92         |
+| **ECA**            |  0 | 2   | 13  | 0   | 1  | 0   | 0.19         |
+| **LAC**            |  0 | 2   | 2   | 19  | 1  | 1   | 0.24         |
+| **SA**             |  2 | 3   | 1   | 1   | 0  | 1   | 1.00         |
+| **SSA**            |  0 | 1   | 0   | 2   | 0  | 37  | 0.08         |
 
-Overall, we were successful in tackling the aim of our project to uncover patterns in development, inequality, and regional trends across countries through the use of multivariate analysis. We recognize that there are limitations and further extensions that can be done in future analysis. For instance, our methods captured major trends and patterns based on holistic measures of a country's development, more country specific factors were not captured by our models and neither were more qualitative metrics that could have had significant impacts. In future iterations of this project, we could not only incorporate further data - other metrics such as more environmental risk indicators or policy intervention / regulatory measures - but also incorporate time dynamics to visualize changes over time. Nonetheless, our project allowed us to uncover the complex interplay between economic and social factors that shape development outcomes.
+### OOB Error Rates Across mtry Values (1–10)
+
+0.342 0.333 0.315 0.306 0.333 0.315 0.333 0.324 0.315 0.306
+
+---
+
+Our model, trained with 500 trees and using 3 variables at each split (mtry = 3), achieved an out-of-bag (OOB) error rate of 32.4%. This performance aligns with patterns observed in earlier methods: Sub-Saharan Africa (SSA) was the most accurately classified region, with an error rate of just 7.5%, reinforcing its strong separation previously identified through PCA and discriminant analysis. Europe & Central Asia (ECA) and Latin America & the Caribbean (LAC) also showed moderate error rates, consistent with their intermediate positioning in the clustering results. In contrast, East Asia & Pacific (EAP), South Asia (SA), and the Americas (AS) were frequently misclassified, paralleling the regional overlaps and ambiguity observed in both clustering and LDA. 
+
+When testing across different mtry values, we found that the OOB error stabilized around mtry = 4, while the error-rate-by-tree plot indicated performance stabilized after approximately 100 trees. Overall, the Random Forest model served as a nice non-parametric check on our earlier findings, confirming that while some regions are easily distinguishable based on development indicators, others require additional dimensions for clearer classification. One limitation is the imbalance in sample size—SSA had the most observations, which may have influenced classification rates. Nevertheless, the model's results were consistent with the broader patterns uncovered in our multivariate analyses.
+
+# Discussion
+
+Our multivariate analysis revealed meaningful insights into patterns of development, inequality, and regional clustering across countries. Beginning with Principal Component Analysis (PCA), we identified two principal components that together explained approximately 83% of the total variance. The first component reflected overall well-being and human development, while the second primarily captured gender inequality. Using the biplot, we also identified Yemen and Madagascar as notable outliers, falling outside the 95% confidence ellipse.
+
+Subsequent clustering analysis, including both K-means and Ward’s hierarchical method using Euclidean distances, supported the presence of four major clusters. These clusters reflected developmental divides: one representing countries with low HDI indicators (ex: many Sub-Saharan African nations), another capturing high-development countries with strong well-being indicators, and two middle clusters. One of these middle clusters included countries like China that appear to be in transition toward higher development, while the other included countries marked by high inequality despite lower development levels.
+
+To further explore how development indicators align with geographic groupings, we applied discriminant analysis. Both Linear and Quadratic Discriminant Analysis (LDA and QDA) indicated that Sub-Saharan Africa and Europe & Central Asia were the most distinguishable groups, based primarily on life expectancy, GNI per capita, and gender inequality. The remaining four regions—East Asia & Pacific, South Asia, Latin America & Caribbean, and the Americas—showed considerable overlap, suggesting shared developmental characteristics that complicate classification.
+
+Additionally, we used a Random Forest classifier. The model achieved an out-of-bag (OOB) error rate of 32.4%, with the most accurate classifications for Sub-Saharan Africa (7.5% error), consistent with the clear separation seen in PCA and QDA. Europe & Central Asia and Latin America & the Caribbean also performed moderately well, while East Asia & Pacific, South Asia, and the Americas were frequently misclassified, mirroring ambiguity observed in previous methods. Tuning the number of variables tried at each split (mtry) showed that classification error stabilized around mtry = 4, and error rates plateaued after approximately 100 trees. These findings confirm that while some regional distinctions are robust across models, others may require additional or alternative features to be effectively distinguished.
+
+# Conclusion
+
+Our project successfully met its objective: to explore underlying trends in global development and inequality using multivariate statistical methods. The use of PCA, clustering, discriminant analysis, and random forest modeling helped us to uncover meaningful patterns that illustrate how countries differ and at times converge along key economic and social indicators.
+
+While our analysis captured broad, global patterns, we also acknowledge its limitations. Country-specific and qualitative factors such as governance quality, conflict, or cultural influences were not captured in our data. Additionally, our work was cross-sectional; incorporating time series data could enhance our understanding of development trajectories and the impact of long-term policy decisions.
+
+Future research could build on this foundation by integrating more diverse variables (ex: climate risk, institutional quality, education systems) and applying non-linear or time-aware models. Nevertheless, our findings offer a robust starting point for understanding the multifaceted dynamics of global development and highlight the value of statistical modeling in informing international policy and development planning.
