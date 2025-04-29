@@ -996,8 +996,6 @@ Since Linear Discriminant Analysis (LDA) relies on the assumption of equal covar
 
 ### Matrix Plots
 
-We use matrix plots to determine what our data looks like with two variables at a time. 
-
 ```{r, echo = FALSE}
 
 region_pairs <- list(
@@ -1061,9 +1059,9 @@ Linear Discriminant Analysis (LDA) was applied under the assumption of relativel
 
 In contrast, the model performed quite well in classifying ECA (87.5% accuracy), LAC (84%), and SSA (95%), indicating clearer group separation in those cases. Nonetheless, the statistically significant result from Box’s M test (p < 0.001) suggests that the assumption of homogeneity of covariance matrices required for LDA is violated. Given this, Quadratic Discriminant Analysis (QDA), which is ok with differing covariance structures, may provide a better fit for this data and potentially yield improved classification accuracy.
 
-### Quadratic Discrminant Analysis 
+### Quadratic Discriminant Analysis 
 
-We decided to use Quadratic Discrminant analysis as it provides a way to determine group means for each variable and understand how different regions are separated based on their feature distributions. 
+We decided to use Quadratic Discriminant analysis as it provides a way to determine group means for each variable and understand how different regions are separated based on their feature distributions. 
 
 ```{r, echo = FALSE, results='hide'}
 (hdi.disc <- qda(data[, columns], grouping = data$Region))
