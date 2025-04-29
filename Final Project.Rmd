@@ -1,0 +1,1044 @@
+---
+title: 'Final Project'
+author: "Franklin Wu and Teresa Nguyen"
+date: "2025-04-09"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Introduction**
+
+Our project utilizes the 2021 Human Development Index (HDI) data sourced from Kaggle. The dataset includes key measures of each country's achievements in health, education, and standard of living, all of which are critical dimensions of overall development. HDI is primarily used by the United Nations and other policymakers to assess development progress across countries and regions, as well as to identify areas for targeted intervention. For example, HDI serves as a tool for policy benchmarking—helping to prioritize aid, tailor policy responses, and assess overall developmental needs. However, the applications of HDI are not limited to governmental actors. Many multinational corporations reference HDI metrics when shaping market entry strategies, as higher HDI scores often suggest more stable and opportunistic markets, while lower scores may indicate greater risks. HDI data is also widely used in academia, particularly in fields such as economics and political science, to explore relationships between development and a range of societal outcomes, as is the focus of this project.
+
+We selected this dataset to perform multivariate analysis for a few key reasons. Starting off, the HDI data gives us global coverage (covering every region and most countries in the world) in addition to being timely (within the past 4 years), reflecting contemporary trends. Furthermore, the HDI data set captures many important aspects of development and allows us to explore the relationships between economic, social, and health factors simultaneously across countries. This is fitting for multivariate analysis given hope to uncover underlying patterns and drivers of human development. And lastly, the project's findings have meaningful policy implications and align closely with our personal interests at the intersection of data analysis and the social sciences.
+
+
+**Design and Primary Questions**
+
+Our project employs three primary multivariate methods (alongside some supplementary techniques): Principal Component Analysis (PCA), Cluster Analysis, and Discriminant Analysis. For PCA, the main question we seek to answer is, *"What are the principal dimensions that explain the variation in HDI across countries?"* To address this, we will assess the assumptions of PCA, perform the analysis, determine the number of components to retain using a scree plot and parallel analysis, and interpret and visualize the final retained components.
+
+Using Cluster Analysis, we aim to answer the question, *"Based on key developmental metrics, are there natural groupings of countries?"* Our planned analysis includes testing different distance metrics and agglomeration methods, visualizing the clustering structure with dendrograms, determining the optimal number of clusters, interpreting the characteristics of each cluster, and supplementing the analysis with k-means clustering.
+
+Lastly, we will conduct Discriminant Analysis to explore the question, *"How accurately can we predict a country's geographic region based on a subset of developmental characteristics?"* Methodologically, we will assess multivariate normality, perform Linear Discriminant Analysis (LDA), Quadratic Discriminant Analysis (QDA), and Stepwise Discriminant Analysis, evaluate classification accuracy, and derive and interpret the discriminant functions in the context of our HDI dataset.
+
+**Description of Variables**
+
+Country(categorical) - Name of the country 
+Region(categorical) - Geographic region classification (eg Sub-Saharan Africa, Europe and Central Asia, etc)
+Human Development Groups(categorical) - Classification of country based on HDI status (Very High, High, Medium, Low)
+HDI_Rank_2021(continuous) - Ranking of countries based on their HDI in 2021 
+HDI_2021(continuous) - HDI value in 2021, a composite measure based on life expectancy, education, and GNI per capita
+Life_Expectancy_2021(continuous) - Average number of years a newborn is expected to live
+Mean_Years_Schooling_2021(continuous) - Average number of completed years of education among people aged 25 years and older
+GNI_Per_Capita_2021(continuous) - Gross National Income per capita 
+Gender_Dev_Index_2021(continuous) - Measurement of gender gap based on holistic metrics
+Human_Inequality_Coeff_2021(continuous) - Represents the percentage loss in HDI due to inequality.
+Overall_Loss_2021(continuous) - Overall loss percentage in human development outcomes due to inequality
+Gender_Inequality_Index_2021(continuous) - Measuring gender disparities across reproductive health, empowerment, and labor market participation
+Maternal_Mortality_Rate_2021(continuous) - Number of maternal deaths per 100,000 live births
+Adolescent_Birth_Rate_2021(continuous) - Number of births per 1,000 women ages 15–19
+Female_Labour_Force_2021(continuous) - Percentage of the female population participating in the labor force
+Male_Labour_Force_2021(continuous) - Percentage of the male population participating in the labor force
+CO2_Emissions_percapita_2021(continuous) - Carbon dioxide emissions per capita (metric tons)
+
+## Data Initialization
+
+```{r, echo = FALSE}
+data <- read.csv("/Users/franklinwu/Desktop/Sophomore/S&DS 363/Human Development Index - Full.csv")
+
+data <- data[, c("Country", "UNDP.Developing.Regions", "HDI.Rank..2021.", "Human.Development.Index..2021.", "Life.Expectancy.at.Birth..2021.", "Mean.Years.of.Schooling..2021.", "Gross.National.Income.Per.Capita..2021.", "Gender.Development.Index..2021.", "Coefficient.of.human.inequality..2021.", "Overall.loss......2021.", "Gender.Inequality.Index..2021.", "Maternal.Mortality.Ratio..deaths.per.100.000.live.births...2021.", "Adolescent.Birth.Rate..births.per.1.000.women.ages.15.19...2021.", "Labour.force.participation.rate..female....ages.15.and.older...2021.", "Labour.force.participation.rate..male....ages.15.and.older...2021.", "Carbon.dioxide.emissions.per.capita..production...tonnes...2021.")]
+
+# rename for better readability
+colnames(data) <- c("Country", "Region", "HDI_Rank_2021", "HDI_2021", "Life_Expectancy_2021", "Mean_Years_Schooling_2021", "GNI_Per_Capita_2021", "Gender_Dev_Index_2021", "Human_Inequality_Coeff_2021", "Overall_Loss_2021", "Gender_Inequality_Index_2021", "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", "Female_Labour_Force_2021", "Male_Labour_Force_2021", "CO2_Emissions_percapita_2021")
+
+# our data frame should only include complete cases
+data <- data[complete.cases(data), ]
+```
+
+
+**Plots and Transformations**
+
+We begin our initial analysis of the data using scatterplots and heatmaps to assess linearity, correlations, and whether the data appears suitable for our chosen methods of analysis at first glance. Additionally, we check for outliers and non-linear patterns.
+
+```{r, warning=FALSE, echo = FALSE}
+library(corrplot)
+library(PerformanceAnalytics)
+
+corrplot.mixed(
+  cor(data[, -c(1:3)]),
+  lower.col = "black",
+  upper = "ellipse",
+  tl.col = "black",
+  number.cex = 0.3,
+  order = "hclust",
+  tl.pos = "lt",
+  tl.cex = 0.5
+)
+
+
+chart.Correlation(data[, -c(1:3)])
+```
+*Based on our plots showing the correlation between our variables, there appear to be decently strong positive and negative correlations between them. For example, variables such as HDI, life expectancy, GNIpc, and mean years of schooling have strong positive correlations that are over 0.75. There are also many other variables that are strongly negatively correlated with one another. For instance, gender and human inequality indices show strong negative correlations with the mean years of schooling and the human development index. Intuitively, these relationships imply that these variables may be interconnected, suggesting that our data is suitable for our first method (PCA) as stronger correlations imply our data has a shared structure that can be explained through PCA. Moreover, the relationships exhibited between variables, for the most part, appear to be linear. However, looking at the scatter plots between our variables, there does seem to be some non-linearity (for instance, the relationship between GNI per capita and mortality rate), which may suggest the use of transformations. The distribution of each of our variables is also shown. Variables such as HDI, life expectancy, and labor force participation are normally distributed while variables like GNIpc and CO2 emissions are right skewed.*
+
+### Multivariate Normality Check and Transformations
+
+
+```{r, echo = FALSE}
+library(MASS)
+library(car)   
+data1 <- as.matrix(data[, -c(1:3)])  
+
+center <- colMeans(data1)  # Mean vector
+cov_matrix <- cov(data1)   # Covariance matrix
+mahalanobis_dist <- mahalanobis(data1, center, cov_matrix)
+
+theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(data1))
+
+qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
+       main = "Chi-Square Q-Q Plot for Multivariate Normality",
+       xlab = "Theoretical Quantiles",
+       ylab = "Observed Mahalanobis Distances")
+
+# MAKE chi-square quantile plot
+#library(heplots)
+#cqplot(data[, -c(1:3)], main = "World Bank Data")
+```
+
+*Based on the Chi-square quantile plot, a large number of observations fall outside the boundary expected under multivariate normality and follow a non-linear pattern, with the latter half curving upwards. The non-linear tail suggests that the data may not be multivariate normal, which could impact our multivariate results since this condition is especially important for discriminant analysis (as LDA assumes that each group is multivariate normal). To address this issue, we decided to apply a log transformation to specific columns (as shown below).*
+
+```{r, warning=FALSE, echo = FALSE}
+# Apply log transformation to specific columns 
+data[c(
+  "GNI_Per_Capita_2021", 
+  "Gender_Dev_Index_2021", 
+  "Maternal_Mortality_Rate_2021", 
+  "Adolescent_Birth_Rate_2021", 
+  "CO2_Emissions_percapita_2021"
+)] <- lapply(
+  data[c(
+    "GNI_Per_Capita_2021", 
+    "Gender_Dev_Index_2021", 
+    "Maternal_Mortality_Rate_2021", 
+    "Adolescent_Birth_Rate_2021", 
+    "CO2_Emissions_percapita_2021"
+  )], 
+  log
+)
+
+chart.Correlation(data[, -c(1:3)])
+```
+*We used log transformations of the following variables: GNI Per Capita, Gender Dev Index, Maternal Mortality Rate, Adolescent Birth Rate, and CO2 Emissions per capita. These variables were not distributed normally and thus has non-linear relationships with our other variables, potentially impacting the effectiveness of our methods Following the transformations of these variables, the distribution (using a histogram) appear to be normal and all of our relationships between the variables are mostly linear. This should fulfill the baseline conditions for our chosen multivariate methods and yield clearer results for anlaysis.*
+
+***PCA***
+
+```{r, echo = FALSE}
+data1 <- as.matrix(data[, -c(1:3)])  
+
+center <- colMeans(data1)  # Mean vector
+cov_matrix <- cov(data1)   # Covariance matrix
+mahalanobis_dist <- mahalanobis(data1, center, cov_matrix)
+
+theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(data1))
+
+qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
+       main = "Chi-Square Q-Q Plot for Multivariate Normality",
+       xlab = "Theoretical Quantiles",
+       ylab = "Observed Mahalanobis Distances")
+```
+*After making log adjustments of our variables with distributions that were not normal, our normal quantile plot is contained more within the bounds. There are still a few observations that are outliers and curve upwards, but our distribution appears to be much more similar to a multi-variate normal dsitribution than before we made the transformations. Based on the chi-square quantile plot, most of the data points fall within the diagonal line, showing that the squared Mahalanobis distances are consistent with the chi-square distribution, which means that the data is mostly mutlivariate normal. However, there are a couple of data points that are outliers such as at 176 and 192.*
+
+### Correlation Analysis and PCA Suitability
+
+For our next step, we created correlation plots to determine correlation coefficients and correlations. We order it based on first principal component to identify the correlated groups and analyze whether PCA is a suitable method. 
+
+```{r, echo = FALSE}
+corrplot(cor(data[ ,-c(1:3)]), method="number", order="FPC", tl.cex = .5, 
+         number.cex = .3)
+corrplot(cor(data[ ,-c(1:3)]),method = "ellipse", order="FPC", tl.cex = .5)
+
+dim(data)
+```
+*As mentioned in the plot section, there appears to be fairly strong correlations (both positive and negative) between our variables. Based on the corrplot, some variables with very strong positive correlations include overall loss and gender inequality (r = 0.88), adolescent birth rate and human inequality coefficient (r = 0.88), and gender inequality and adolescent birth rate (r = 0.81). Likewise, there are some decently strong negative correlation between our variables such as mean years of education and human inequality (r = -0.89), gender inequality and life expectancy (r = -0.85) and human inequality and life expectancy (-0.85). This suggests that PCA should work relatively well on our given data since strong correlations implies that a lot of the variance is being described by multiple variables and as such, we can capture a lot of the variability by using a set of principle components (thus reducing our dimensions overall). Our dataset is composed of 150 complete observations and 13 variables (there are 16 total variables but we excluded 3 of them from our analysis since they are categorical). Relative to the number of variables our sample size is sufficiently large enough (there are over 10 times the amount of complete oberservations as variables) and we can use a rule of them to ensure that our data set is large enough for PCA.*
+
+
+```{r, echo = FALSE}
+
+summary.PCA.JDRS <- function(x){
+  sum_JDRS <- summary(x)$importance
+  sum_JDRS[1, ] <- sum_JDRS[1, ]^2
+  attr(sum_JDRS, "dimnames")[[1]][1] <- "Eigenvals (Variance)"
+  sum_JDRS
+}
+
+pc1 <- prcomp(data[, -c(1:3)], scale. = TRUE)
+
+round(summary.PCA.JDRS(pc1),2)
+
+```
+*Using the total variance explained by a given number of principal components, we can use a total explained cutoff of 80%. Under this threshold, we would need two principal components to capture at least 80% of the total variance. In this case, the first principal component explains 71% of the total variance and 12% for the second principal component for a total of 83%. Using the eigenvalues > 1 rule, we would retain only the first two principal components, with eigenvalues of 9.21 and 1.60, respectively.*
+
+### Scree plots
+
+We will now apply scree plots to display the eigenvalues of each principal component. We will also apply parallel analysis to decide how many components to retain.
+
+```{r, echo = FALSE}
+screeplot(pc1, type = "lines", col = "red", lwd = 2, pch = 19, cex = 1.2, 
+          main = "Scree Plot of Raw WB Data")
+```
+*Using the scree plot elbow method, there is an apparent elbow at the first principal component transitioning to the second principal component, which indicates that PC1 explains the majority of the variance in the data and variance in PC2 decreases significantly. Although the curve flattens after PC2, there appears to be a subtle change in slope near PC3, but it is not as distinct.* 
+
+*Using the second principle component as the cutoff, we would only retain one principle component according to the scree plot.*
+
+```{r, echo = FALSE}
+parallel<-function(n,p){
+  
+  if (n > 1000 || p > 100) {
+    print ("Sorry, this only works for n<1000 and p<100")
+    stop()
+  }
+  
+  coefs <- matrix(
+    c(0.0316, 0.7611, -0.0979, -0.3138, 0.9794, -.2059, .1226, 0, 0.1162, 
+      0.8613, -0.1122, -0.9281, -0.3781, 0.0461, 0.0040, 1.0578, 0.1835, 
+      0.9436, -0.1237, -1.4173, -0.3306, 0.0424, .0003, 1.0805 , 0.2578, 
+      1.0636, -0.1388, -1.9976, -0.2795, 0.0364, -.0003, 1.0714, 0.3171, 
+      1.1370, -0.1494, -2.4200, -0.2670, 0.0360, -.0024, 1.08994, 0.3809, 
+      1.2213, -0.1619, -2.8644, -0.2632, 0.0368, -.0040, 1.1039, 0.4492, 
+      1.3111, -0.1751, -3.3392, -0.2580, 0.0360, -.0039, 1.1173, 0.5309, 
+      1.4265, -0.1925, -3.8950, -0.2544, 0.0373, -.0064, 1.1421, 0.5734, 
+      1.4818, -0.1986, -4.2420, -0.2111, 0.0329, -.0079, 1.1229, 0.6460, 
+      1.5802, -0.2134, -4.7384, -0.1964, 0.0310, -.0083, 1.1320),ncol=8, byrow=TRUE)
+  
+  calclim <- p
+  if (p > 10) calclim <- 10
+  coefsred <- coefs[1:calclim, ]
+  temp <- c(p:1)
+  #stick <- sort(cumsum(1/temp), decreasing=TRUE)[1:calclim]
+  multipliers <- matrix(c(log(n),log(p),log(n)*log(p),1), nrow=1)
+  longman <- exp(multipliers%*%t(coefs[,1:4]))[1:calclim]
+  allen <- rep(NA, calclim)
+  leig0 <- 0
+  newlim <- calclim
+  if (calclim+2 < p) newlim <-newlim+2
+  for (i in 1:(newlim-2)){
+    leig1 <- coefsred[i,5:8]%*%matrix(c(1,log(n-1),log((p-i-1)*(p-i+2)/2), leig0))
+    leig0 <- leig1
+    allen[i] <- exp(leig1)
+  }
+  pcompnum <- c(1:calclim)
+  #data.frame(cbind(pcompnum,stick,longman,allen))
+  data.frame(cbind(pcompnum,longman,allen))  
+}
+
+#########
+#this function makes a nice plot if given the input from a PCA analysis
+#created by prcomp()
+##
+#arguments are
+#    n=number of observations
+
+parallelplot <- function(comp){
+  if (dim(comp$x)[1] > 1000 || length(comp$sdev) > 100) {
+    print ("Sorry, this only works for n < 1000 and p < 100")
+    stop()
+  }
+  #if (round(length(comp$sdev)) < round(sum(comp$sdev^2))) {
+  #    print ("Sorry, this only works for analyses using the correlation matrix")
+  #    stop()
+  # }
+  
+  parallelanal <- parallel(dim(comp$x)[1], length(comp$sdev))
+  print(parallelanal)
+  calclim <- min(10, length(comp$sdev))
+  eigenvalues <- (comp$sdev^2)[1:calclim]
+  limits <- as.matrix(parallelanal[,2:3])
+  limits <- limits[complete.cases(limits)]
+  ymax <- range(c(eigenvalues),limits)
+  plot(parallelanal$pcompnum, eigenvalues, xlab="Principal Component Number",
+       ylim=c(ymax), ylab="Eigenvalues and Thresholds",
+       main="Scree Plot with Parallel Analysis Limits",type="b",pch=15,lwd=2, col="red")
+  #lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="red",pch=16,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,2], type="b",col="green",pch=17,lwd=2)
+  lines(parallelanal$pcompnum,parallelanal[,3], type="b",col="blue",pch=18,lwd=2)
+  #legend((calclim/2),ymax[2],legend=c("Eigenvalues","Stick Method","Longman Method",
+  # "Allen Method"),  pch=c(15:18), col=c("black","red","green","blue"),lwd=2)
+  legend((calclim/2), ymax[2], legend=c("Eigenvalues","Longman Method","Allen Method"), 
+         pch = c(16:18), col= c("red","green","blue"), lwd=2)
+}
+
+parallelplot(pc1)
+```
+*Since parallel analysis assumes that the data is suitable for PCA, we can use it as a valid method to determine the number of principle components to keep. After transforming the data, we have linear relationships between all of our variables and also normality (although this isn't a necessary condition for PCA). Based on parallel analysis, we should retain 2 principle components, since the cutoff is right below the second component.*
+
+### Interpretation of PCA
+
+```{r, echo = FALSE}
+# principal component loadings to indicate how much of each original var.
+# contributes to each principal component
+round(pc1$rotation,2)
+```
+*Based on our analysis, we decided to retain only the first 2 principal components. The first component appears to be a general measure of overall well-being and development. Significant positive loadings for this component include variables such as HDI, life expectancy, and mean years of schooling, all of which are important benchmarks for assessing a country's development. On the other hand, the loadings that are equally large in magnitude but negative include the inequality level, overall loss, gender inequality and the mortality rate. These negative loadings are indicative of lesser developed countries, which is why they have opposite signs to the positive indicators of development.*
+
+*Our second principle component describes gender equality. It is characterized by large loadings for three key variables: the gender development index, participation in the female labor force and participation in the male labor force. These variables share a common relationship with gender equality and provide a holistic measure when considered alongside the gender inequality index and the differences in employment levels between males and females.*
+
+### Visualizations and Validations of PCA Results
+
+We want to see how observations of countries are distributed among the two principal components and identify outliers, which deviate from multivariate normal distributions of scores.
+
+We also create a biplot to help understand how the observations and variables interact in a reduced dimensional space. 
+
+```{r, echo = FALSE}
+
+ciscoreplot<-function(x, comps, namevec){
+  y1<-sqrt(5.99*(x$sdev[comps[1]]^2))
+  ymod<-y1-y1%%.05
+  y1vec<-c(-y1,seq(-ymod,ymod,by=0.05),y1)
+  y2vecpos<-sqrt((5.99-(y1vec^2)/x$sdev[comps[1]]^2)*x$sdev[comps[2]]^2)
+  y2vecneg<--sqrt((5.99-(y1vec^2)/x$sdev[comps[1]]^2)*x$sdev[comps[2]]^2)
+  y2vecpos[1]<-0
+  y2vecneg[1]<-0
+  y2vecpos[length(y2vecpos)]<-0
+  y2vecneg[length(y2vecneg)]<-0
+  
+  plot(x$x[,comps[1]],x$x[,comps[2]], 
+       pch = 19, 
+       cex = 1.2,
+       xlim = c(min(y1vec, x$x[, comps[1]]), max(y1vec, x$x[, comps[1]])),
+       ylim = c(min(y2vecneg, x$x[, comps[2]]), max(y2vecpos, x$x[, comps[2]])),
+       main = "PC Score Plot with 95% CI Ellipse", 
+       xlab = paste("Scores for PC", comps[1], sep = " "), 
+       ylab = paste("Scores for PC", comps[2], sep = " "))
+  
+  lines(y1vec,y2vecpos,col="Red",lwd=2)
+  lines(y1vec,y2vecneg,col="Red",lwd=2)
+  outliers<-((x$x[,comps[1]]^2)/(x$sdev[comps[1]]^2)+(x$x[,comps[2]]^2)/(x$sdev[comps[2]]^2))>5.99
+  
+  points(x$x[outliers, comps[1]], x$x[outliers, comps[2]], pch = 19, cex = 1.2, col = "Blue")
+  
+  text(x$x[outliers, comps[1]],x$x[outliers, comps[2]], col = "Blue", lab = namevec[outliers])
+}
+
+ciscoreplot(pc1, c(1, 2), data[, 1])
+
+```
+*The score plot visualizes the distribution of observations based on the first and second principal components. It includes a 95% confidence ellipse to identify outliers and confirm the distribution of points. There don't appear to be any clear trends/groupings in our score plot of the first and second principle component.*
+
+*There are 2 outliers in our 95% confidence ellipse of our 2 retained components: Yemen and Madagascar. Madagascar appears to fall outside of the ellipse in the direction of the second component only slightly (this is in large part due to it's orientation in relation to the first principle component). In contrast, Yemen lies outside the ellipse in the direction of the second principle component by a good margin, indicating a more significant deviation in the factors captured by PC2, possibly related to gender equality.*
+
+*Our interpretations of the 95% confidence ellipse are valid given we have a multivariate normal distribution in our dataset as shown in the chi-square quantile plot and is a necessary condition for interpreting the ellipse.*
+
+```{r, echo = FALSE}
+biplot(pc1, choices = c(1, 2), pc.biplot = TRUE, cex = 0.7)
+```
+*The biplot shows the distribution of countries based on their principal component scores for the first and second principle components. The arrows indicate the strength of a variable's contribution (magnitude) while the direction underscores how the variable contributed to the components. Similar to the score plot above, there doesn't appear to be many distinct trends between the principal component scores of the countries. However, the arrows reinforce our interpretation of the principle components. The second principal component is primarily influenced by variables such as the female/male labor force and gender development index (the arrows point up). On the other hand, the first component is influenced by development variables such as GNI per capita and the mortality rate, which point in opposite directions since they are negatively correlated. Likewise, when the arrows are perpendicular, this reflects smaller loadings for those variables in defining that particular principal component, as observed in the data.*
+
+*Based on our findings, we were able to utilize PCA because our variables had strong correlations, linear relationships, and were normally distributed (although this point itself isn't necessary for PCA it allowed us to use methods like parallel anaylsis). We were able to capture approximately 78% of the total variance using two principal components, derived through various methods including a scree plot, parallel analysis, and the eigenvalue > 1 criteria. The first principle component captures the overall development of a country, with development-related variables showing large positive loading, while variables indicative of lower development had large negative loadings. In contrast, the second principal component focuses solely on gender equality, driven by variables relating to female/male labor employment and the gender inequality index.*
+
+*Finally, we created a score plot (with 95% confidence interval ellipse) and a biplot to analyze our results. In the 95% confidence interval ellipse, there were 2 outliers which is unsurprising given we had over 150 observations and the deviation for one of those outliers was negligable in the direction of the second component. The biplot validated our interpretations of the principal components and was appropiate for analysis, given that we verified the multivariate normality of the data's distribution.*
+
+***Cluster Analysis***
+
+
+```{r, echo = FALSE}
+library(aplpack)
+library(fpc)
+library(cluster)
+library(ape)
+library(amap)
+library(PerformanceAnalytics)
+```
+
+### Distance Metrics & Possible Transformations
+
+```{r, echo = FALSE}
+#one way to standardize data
+wbnorm <- data[, c("HDI_2021", "Life_Expectancy_2021", 
+                   "Mean_Years_Schooling_2021", "GNI_Per_Capita_2021", 
+                   "Gender_Dev_Index_2021", "Gender_Inequality_Index_2021", 
+                   "Maternal_Mortality_Rate_2021", "Adolescent_Birth_Rate_2021", 
+                   "Female_Labour_Force_2021", "Male_Labour_Force_2021", 
+                   "CO2_Emissions_percapita_2021")]
+rownames(wbnorm) <- data[, 1]
+wbnorm <- scale(na.omit(wbnorm))
+dim(wbnorm)
+
+```
+
+*We chose Euclidean distance as the most appropriate metric because our data is continuous and standardized, making it suitable for measuring straight-line distances between countries based on various HDI indicators.*
+
+*Other methods of distance do not fit the context of our data. For instance, our data is not binary so we would not use Jaccard Distance and we are not looking at absolute differences so Manhattan Distance would not be satisfactory. *
+
+*To ensure Euclidean distance performs accurately, we standardized our data and made minor preprocessing adjustments, such as setting country names as row labels. Moreover, we applied log transformations to variables with significant skewness to improve the overall distribution and clustering performance.*
+ 
+### Hierarchical Cluster Analysis - Euclidean and Manhattan
+
+```{r, echo = FALSE}
+#Euclidean and complete
+dist1 <- dist(wbnorm, method = "euclidean")
+clust1 <- hclust(dist1)
+plot(clust1, labels = rownames(wbnorm), cex = 0.3, xlab = "", 
+     ylab = "Distance", main = "Clustering of Countries")
+rect.hclust(clust1, k = 3)
+
+#Ward with Manhattan
+dist2 <- dist(wbnorm, method = "manhattan")
+clust2 <- hclust(dist2, method = "ward.D")
+plot(clust2, labels = rownames(wbnorm), cex = 0.3, xlab = "", 
+     ylab = "Distance", main = "Clustering of Countries")
+rect.hclust(clust2, k = 5)
+
+#Maximum with Single
+dist3 <- dist(wbnorm, method = "maximum")
+clust3 <- hclust(dist3, method = "single")
+plot(clust3, labels = rownames(wbnorm), cex = 0.3, xlab = "", 
+     ylab = "Distance", main = "Clustering of Countries")
+rect.hclust(clust3, k = 2)
+```
+
+*The first dendrogram uses Euclidean distance with complete agglomeration (also known as the farthest-neighbor method), which merges clusters based on the maximum distance between observations. This approach produced roughly three clusters, with Yemen standing out as a clear outlier forming its own cluster, while the remaining countries split into two relatively compact groups.*
+
+*In contrast, the dendrogram using Manhattan distance with Ward’s method—which minimizes the total within-cluster variance—resulted in about five distinct, tightly grouped clusters with lower internal variability.*
+
+*Lastly, the third method applies Euclidean distance with single linkage (nearest-neighbor), where clusters are formed based on the smallest distance between points. This approach yielded a very different structure: Yemen again appears as a singular outlier, while all other countries are grouped into one large, less structured cluster.*
+
+### Number of Groups
+
+```{r, echo = FALSE}
+source("https://raw.githubusercontent.com/jreuning/sds363_code/refs/heads/main/HClusEval3.R.txt")
+#Call the function
+hclus_eval(wbnorm, dist_m = 'euclidean', clus_m = 'complete', plot_op = T, 
+           print_num = 15)
+```
+
+*To determine the optimal number of clusters, we looked at many metrics. The total sum of squares (RSQ), represented by the red line, demonstrates diminishing returns after the fourth cluster, suggesting limited additional explanatory power beyond that point. The semi-partial R-squared (green line) shows a clear elbow at the third index, indicating a potential grouping into three clusters. The Root Mean Square Standard Deviation (RMSSTD) curve flattens between the fourth and fifth index, pointing toward reduced improvement in within-cluster homogeneity beyond that range. Additionally, the cluster distance plot shows a noticeable elbow around the fourth, and possibly sixth, index. Taking all these indicators into account, four clusters appear to be the most appropriate number to retain.*
+
+### K-Means Clustering
+
+```{r, echo = FALSE}
+#kdata is just normalized input dataset
+kdata <- wbnorm
+n.lev <- 15  #set max value for number of clusters k
+
+# Calculate the within groups sum of squared error (SSE) for the number of 
+# solutions selected by the user
+wss <- rnorm(10)
+while (prod(wss==sort(wss,decreasing=T))==0) {
+  wss <- (nrow(kdata)-1)*sum(apply(kdata,2,var))
+  for (i in 2:n.lev) wss[i] <- sum(kmeans(kdata, centers=i)$withinss)}
+
+# Calculate the within groups SSE for 250 randomized data sets 
+# (based on the original input data)
+k.rand <- function(x){
+  km.rand <- matrix(sample(x),dim(x)[1],dim(x)[2])
+  rand.wss <- as.matrix(dim(x)[1]-1)*sum(apply(km.rand,2,var))
+  for (i in 2:n.lev) rand.wss[i] <- sum(kmeans(km.rand, centers=i)$withinss)
+  rand.wss <- as.matrix(rand.wss)
+  return(rand.wss)
+}
+
+rand.mat <- matrix(0,n.lev,250)
+
+k.1 <- function(x) { 
+  for (i in 1:250) {
+    r.mat <- as.matrix(suppressWarnings(k.rand(kdata)))
+    rand.mat[,i] <- r.mat}
+  return(rand.mat)
+}
+
+# Same function as above for data with < 3 column variables
+k.2.rand <- function(x){
+  rand.mat <- matrix(0,n.lev,250)
+  km.rand <- matrix(sample(x),dim(x)[1],dim(x)[2])
+  rand.wss <- as.matrix(dim(x)[1]-1)*sum(apply(km.rand,2,var))
+  for (i in 2:n.lev) rand.wss[i] <- sum(kmeans(km.rand, centers=i)$withinss)
+  rand.wss <- as.matrix(rand.wss)
+  return(rand.wss)
+}
+
+k.2 <- function(x){
+  for (i in 1:250) {
+    r.1 <- k.2.rand(kdata)
+    rand.mat[,i] <- r.1}
+  return(rand.mat)
+}
+
+# Determine if the data data table has > or < 3 variables and call appropriate 
+# function above
+if (dim(kdata)[2] == 2) { rand.mat <- k.2(kdata) } else { rand.mat <- k.1(kdata) }
+
+# Plot within groups SSE against all tested cluster solutions for actual and 
+# randomized data - 1st: Log scale, 2nd: Normal scale
+
+xrange <- range(1:n.lev)
+yrange <- range(log(rand.mat),log(wss))
+plot(xrange,yrange, type='n', xlab='Cluster Solution', 
+     ylab='Log of Within Group SSE', main='Cluster Solutions against Log of SSE')
+for (i in 1:250) lines(log(rand.mat[,i]),type='l',col='red')
+lines(log(wss), type="b", col='blue')
+legend('topright',c('Actual Data', '250 Random Runs'), col=c('blue', 'red'), lty=1)
+
+yrange <- range(rand.mat,wss)
+plot(xrange,yrange, type='n', xlab="Cluster Solution", 
+     ylab="Within Groups SSE", main="Cluster Solutions against SSE")
+for (i in 1:250) lines(rand.mat[,i],type='l',col='red')
+lines(1:n.lev, wss, type="b", col='blue')
+legend('topright',c('Actual Data', '250 Random Runs'), col=c('blue', 'red'), lty=1)
+
+# Calculate the mean and standard deviation of difference 
+# between SSE of actual data and SSE of 250 randomized datasets
+r.sse <- matrix(0,dim(rand.mat)[1],dim(rand.mat)[2])
+wss.1 <- as.matrix(wss)
+for (i in 1:dim(r.sse)[2]) {
+  r.temp <- abs(rand.mat[,i]-wss.1[,1])
+  r.sse[,i] <- r.temp}
+r.sse.m <- apply(r.sse,1,mean)
+r.sse.sd <- apply(r.sse,1,sd)
+r.sse.plus <- r.sse.m + r.sse.sd
+r.sse.min <- r.sse.m - r.sse.sd
+
+# Plot differeince between actual SSE mean SSE from 250 randomized datasets - 
+# 1st: Log scale, 2nd: Normal scale 
+
+xrange <- range(1:n.lev)
+if (min(r.sse.min) < 0){
+   yrange <- range(log(r.sse.plus - min(r.sse.min)*1.05), log(r.sse.min - min(r.sse.min)*1.05))
+} else {
+   yrange <- range(log(r.sse.plus), log(r.sse.min))
+}
+
+plot(xrange,yrange, type='n',xlab='Cluster Solution', 
+     ylab='Log of SSE - Random SSE', 
+     main='Cluster Solustions against (Log of SSE - Random SSE)')
+lines(log(r.sse.m), type="b", col='blue')
+lines(log(r.sse.plus), type='l', col='red')
+lines(log(r.sse.min), type='l', col='red')
+legend('topright',c('SSE - random SSE', 'SD of SSE-random SSE'), col=c('blue', 'red'), lty=1)
+
+xrange <- range(1:n.lev)
+yrange <- range(r.sse.plus,r.sse.min)
+plot(xrange,yrange, type='n',
+     xlab='Cluster Solution', ylab='SSE - Random SSE', 
+     main='Cluster Solutions against (SSE - Random SSE)')
+lines(r.sse.m, type="b", col='blue')
+lines(r.sse.plus, type='l', col='red')
+lines(r.sse.min, type='l', col='red')
+legend('topright',c('SSE - random SSE', 'SD of SSE-random SSE'), 
+       col = c('blue', 'red'), lty = 1)
+
+# Ask for user input - Select the appropriate number of clusters
+#choose.clust <- function(){readline("What clustering solution would you like to use? ")} 
+#clust.level <- as.integer(choose.clust())
+clust.level <- 4
+
+# Apply K-means cluster solutions - append clusters to CSV file
+fit <- kmeans(kdata, clust.level)
+aggregate(kdata, by=list(fit$cluster), FUN=mean)
+clust.out <- fit$cluster
+kclust <- as.matrix(clust.out)
+kclust.out <- cbind(kclust, wbnorm)
+write.table(kclust.out, file="kmeans_out.csv", sep=",")
+
+# Display Principal Components plot of data with clusters identified
+
+clusplot(kdata, fit$cluster, shade = F, labels = 2, lines = 0, color = T,
+         lty = 4, main = 'Principal Components plot showing K-means clusters')
+
+
+#Make plot of five cluster solution in space desginated by first two
+#  two discriminant functions
+
+plotcluster(kdata, fit$cluster, main="Four Cluster Solution in DA Space",
+            xlab="First Discriminant Function", ylab="Second Discriminant Function")
+
+# end of script
+```
+
+*After performing K-means clustering, we generated a plot of the total sum of squares versus the number of clusters (k). The elbow in the curve appears around the fourth cluster, suggesting that four is an appropriate number of groups to retain. *
+
+*Additionally, we included a plot of the sum of squared errors (SSE) for random permutations of the data (in red), which also shows a subtle kink around the fourth cluster. A plot of the log-transformed SSE similarly points to a maximum around the fourth index. *
+
+*Taken together, these plots indicate that four clusters best capture the underlying structure of the data, which aligns with our findings from hierarchical clustering, further strengthening the presence of four naturally distinct groupings within the dataset. *
+
+*To visualize these groupings, we plotted the K-means clusters in principal component space (using the first and second components), as well as in discriminant analysis space, both of which show clear separation among the identified clusters.*
+
+### Plots in DA and PCA Space
+
+```{r, echo = FALSE}
+clust1 <- hclust(dist1, method = "ward.D")
+cuts <- cutree(clust1, k = 4)
+clusplot(wbnorm, cuts, color = TRUE, shade = TRUE, labels = 2, lines = 0, 
+         main = "World Bank Five Cluster Plot, Complete Linkage, First two PC", 
+         cex = .5)
+plotcluster(wbnorm, cuts, main = "Five Cluster Solution in DA Space", 
+            xlab = "First Discriminant Function", 
+            ylab = "Second Discriminant Function", cex = .8)
+```
+*The cluster plots in both discriminant analysis (DA) space and principal component analysis (PCA) space—based on Euclidean distance and Ward’s method—show a clear separation among the groups. Similar with our K-means results, both visualizations suggest the presence of four distinct clusters. These plots' confirmation supports our earlier selection that four is the optimal number of groups to retain.*
+
+```{r, echo = FALSE}
+for (i in 1:4){
+  print(paste("Countries in Cluster ", i))
+  print(rownames(wbnorm)[cuts == i])
+  print (" ")
+}
+
+pca <- prcomp(wbnorm, scale = TRUE)
+pca$rotation  # This shows the loadings
+
+```
+
+*Cluster 1 (e.g., Uganda, Nigeria, Sudan) consists of countries with low Human Development Index (HDI) indicators. These countries are positioned on the far left of the first principal component, which appears to represent a general measure of overall HDI performance. In contrast, Cluster 3 (e.g., Denmark, Finland, Japan) includes highly developed countries with strong HDI metrics, scoring highest along the same component. The remaining two clusters are less clear. Cluster 2, which includes countries like China, seems to represent nations in transition—those currently progressing toward developed status—positioned between the low and high extremes along the first principal component. Cluster 3 appears to contain less developed countries that vary more along the second principal component, which seems to show gender-related development factors, given the strong loadings of variables like male/female labor force participation and the Gender Development Index. *
+
+*Overall, the clustering results fit the context of our dataset, effectively grouping countries by their development stage—from low HDI to highly developed, with transitional and intermediate categories in between.*
+
+***Discriminant Analysis***
+
+```{r, warning = FALSE, echo = FALSE}
+library(MASS)
+library(biotools)
+library(klaR)
+library(car)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggExtra)
+library(heplots)
+```
+
+```{r, echo = FALSE}
+data <- data[complete.cases(data) & data$Region != "", ]
+```
+
+### Analysis of Multivariate Normality and Similar Covariances Matrices
+
+#### Chi-Square Quantile Plots 
+
+We will first create **Chi-Square quantile plots** to evaluate multivariate normality within each group. 
+
+```{r, echo = FALSE}
+cqplot <- function(data1, main) {
+  library(car)  # Load the car package for qqPlot function
+  
+  center <- colMeans(data1)  
+  cov_matrix <- cov(data1)   
+  
+  # calculate mahalanobis distances
+  mahalanobis_dist <- mahalanobis(data1, center, cov_matrix)
+  
+  theoretical_quantiles <- qchisq(ppoints(length(mahalanobis_dist)), df = ncol(data1))
+  
+  qqPlot(mahalanobis_dist, distribution = "chisq", df = ncol(data1),
+         main = main,
+         xlab = "Theoretical Quantiles",
+         ylab = "Observed Mahalanobis Distances")
+}
+
+columns <- c(4, 5, 7, 11, 15)
+
+# create a plot for each group 
+par(mfrow = c(1,2), pty = "s", cex = 0.8)
+cqplot(data[data$Region == "AS", columns], main = "Asia (AS)")
+cqplot(data[data$Region == "EAP", columns], main = "East Asia & Pacific (EAP)")
+cqplot(data[data$Region == "ECA", columns], main = "Europe & Central Asia (ECA)")
+cqplot(data[data$Region == "LAC", columns], main = "Latin America & the Caribbean (LAC)")
+cqplot(data[data$Region == "SA", columns], main = "South Asia (SA)")
+cqplot(data[data$Region == "SSA", columns], main = "Sub-Saharan Africa (SSA)")
+par(mfrow = c(1,1))
+
+```
+*Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data roughly follows a linear trend, indicating the assumption of multivariate normality holds across all groups. Most observed Mahalanobis distances align well with the theoretical quantities and remain within the confidence bounds.*
+
+*However, there does appear to be more deviations from normality at upper quartiles, such as in LAC and ECA, while some points slightly exceed the theoretical line. While these deviations suggest the presence of outliers or skewedness, they are still within the acceptable limits, so the normality assumption is not strongly violated.*
+
+#### Covariances Matrices - Box's M and Matrices
+
+We then create covariances matrices to see similarity and use the Box's M statistic. The Box's M is used to test equality of entire covariances matrices as equal covariance matrices are an assumption of discriminant analysis.
+
+```{r, echo = FALSE}
+
+library(heplots)
+# covariance matrices for all the regions 
+print("Covariance Matrix for AS")
+cov_as <- cov(data[data$Region == "AS", columns])
+print(cov_as)
+
+print("Covariance Matrix for EAP")
+cov_eap <- cov(data[data$Region == "EAP", columns])
+print(cov_eap)
+
+print("Covariance Matrix for ECA")
+cov_eca <- cov(data[data$Region == "ECA", columns])
+print(cov_eca)
+
+print("Covariance Matrix for LAC")
+cov_lac <- cov(data[data$Region == "LAC", columns])
+print(cov_lac)
+
+print("Covariance Matrix for SA")
+cov_sa <- cov(data[data$Region == "SA", columns])
+print(cov_sa)
+
+print("Covariance Matrix for SSA")
+cov_ssa <- cov(data[data$Region == "SSA", columns])
+print(cov_ssa)
+
+# ratios
+print("Ratio of Largest to Smallest Covariance Elements for AS vs EAP")
+cov_rat_as_eap <- cov_as / cov_eap
+cov_rat_as_eap[abs(cov_rat_as_eap) < 1] <- 1 / 
+  (cov_rat_as_eap[abs(cov_rat_as_eap) < 1])
+print(round(cov_rat_as_eap, 1))
+
+print("Ratio of Largest to Smallest Covariance Elements for ECA vs LAC")
+cov_rat_eca_lac <- cov_eca / cov_lac
+cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1] <- 1 / 
+  (cov_rat_eca_lac[abs(cov_rat_eca_lac) < 1])
+print(round(cov_rat_eca_lac, 1))
+
+print("Ratio of Largest to Smallest Covariance Elements for SA vs SSA")
+cov_rat_sa_ssa <- cov_sa / cov_ssa
+cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1] <- 1 / 
+  (cov_rat_sa_ssa[abs(cov_rat_sa_ssa) < 1])
+print(round(cov_rat_sa_ssa, 1))
+
+# Box M statistic 
+print("Box's M statistic for all regions")
+boxM_result <- boxM(data[, columns], data$Region)
+print(boxM_result)
+
+```
+*Looking at our covariance matrices and the ratio of the largest to smallest elements of these entries, our covariance matrices seem to be pretty similar considering the ratio of our entries are mostly all less than 4. However, Box's M-test gave us a p-value of 0.0002912, which suggests that are covariance matrices are statistically significantly different. This is likely dude to our relatively large sample size (over 80 observations) and high degrees of freedom (df = 75), making the test highly sensitive to small deviations.*
+
+#### Covariances Matrices - Testing Out Transformations
+
+```{r, echo = FALSE}
+library(heplots)
+
+data_log_transformed <- data.frame(data) # Creates a deep copy
+
+log_transform_columns <- c("HDI_2021", "Life_Expectancy_2021", "GNI_Per_Capita_2021", 
+                           "Gender_Inequality_Index_2021", "Male_Labour_Force_2021")
+
+print("Raw Log Determinants (Before Log Transformation)")
+log_dets_before <- c()
+for (region in unique(data$Region)) {
+  cov_matrix <- cov(data_log_transformed[data$Region == region, log_transform_columns])
+  log_det <- log(det(cov_matrix))
+  log_dets_before <- c(log_dets_before, log_det)
+  cat(region, ":", log_det, "\n")
+}
+
+data_log_transformed[log_transform_columns] <- 
+  log(data_log_transformed[log_transform_columns] + 0.001)
+
+
+print("Covariance Matrices After Log Transformation")
+cov_matrices <- list()
+for (region in unique(data$Region)) {
+  cov_matrices[[region]] <- cov(data_log_transformed[data_log_transformed$Region
+                                                     == region, log_transform_columns])
+}
+
+print("Raw Log Determinants (After Log Transformation)")
+log_dets_after <- c()
+for (region in unique(data$Region)) {
+  log_det <- log(det(cov_matrices[[region]]))
+  log_dets_after <- c(log_dets_after, log_det)
+  cat(region, ":", log_det, "\n")
+}
+
+log_det_differences <- max(log_dets_after) - min(log_dets_after)
+print(paste("Max-Min Difference in Log Determinants (After Log Transformation):", 
+            log_det_differences))
+
+print("Box's M statistic for all regions")
+boxM_result <- boxM(data_log_transformed[, log_transform_columns], 
+                    data_log_transformed$Region)
+print(boxM_result)
+
+# Compare sensitivity
+if (log_det_differences < 1) {
+  print("Log determinants are nearly equal. Box's M may be overly sensitive.")
+} else {
+  print("Significant differences in log determinants.")
+}
+
+```
+*The covariance matrices exhibit large ratios, suggesting a violation of multivariate normality. Applying log transformations did not fully correct the issue, as significant differences remain in the log determinants across groups, with a maximum-minimum difference of 8.37.*
+
+*Additionally, Box’s M-test remains highly significant (p-value = 2.456e-13), reinforcing that the covariance matrices are statistically different. While Box’s M-test is known to be sensitive to large sample sizes, the large spread in log determinants suggests that this result reflects true differences rather than mere statistical sensitivity.*
+
+*Since LDA assumes similarity of covariance matrices, it may not be suitable in this case. Given these results, QDA may be a better alternative as it does not assume equal covariances.*
+
+#### Matrix Plots
+
+To determine what our data looks like with two variables at a time. 
+
+```{r, echo = FALSE}
+
+region_pairs <- list(
+  c("AS", "EAP"),
+  c("ECA", "LAC"),
+  c("SA", "SSA")
+)
+
+for (pair in region_pairs) {
+  
+  filtered_data <- data[data$Region %in% pair, ]
+  
+  filtered_data$Region_Factor <- as.numeric(as.factor(filtered_data$Region))
+  
+  plot(filtered_data[, columns],
+       col = filtered_data$Region_Factor + 2,  
+       pch = filtered_data$Region_Factor + 15, 
+       cex = 1.2,
+       main = paste(pair[1], "vs", pair[2]))  
+}
+                          
+```
+*The matrix plots show that the selected variables serve as strong discriminators between the two groups. Many variables show a clear direction of deviation, which suggests stronger results when using discriminant analysis. However, there are some overlaps between the groups that are visible in certain pairs, which may impact performance. Based on these results, applying QDA should be good, and we will also use Wilks Lambda for best feature selection as well.*
+
+### Discriminant Analysis
+
+#### Linear Discriminant Analysis
+
+```{r, echo = FALSE}
+library(MASS)
+
+hdi_lda <- lda(data[, log_transform_columns], grouping = data$Region)
+
+ctraw <- table(data$Region, predict(hdi_lda)$class)
+print("Confusion Matrix:")
+print(ctraw)
+
+lda_acc <- round(sum(diag(prop.table(ctraw))), 2)
+print(paste("LDA Accuracy:", lda_acc))
+
+```
+*LDA was applied since our groups have relatively similar covariance structures.The overall accuracy of LDA when it comes to classification is approximately 0.72 for the given variables, showing that the model was performing reasonably well. However, misclassifications are prevalent, particularly for AS (4/9 = 44%), EAP (1/13 = 8%), and SA (2/8 = 25%), which suggests overlapping feature distributions among these regions. Regions like ECA (14/16 = 87.5%), LAC (21/25 = 84%), and SSA (38/40 = 95%) had high accuracy. However, Box's M test showed that our covariance matrices are statistically different, suggesting that linear discriminant analysis' assumption of equal covariances does not hold. Quadratic discriminant analysis may be more fitting given that it allows for different covariance matrices.*
+
+#### Quadratic Discrminant Analysis 
+
+We decided to use Quadratic Discrminant analysis as it provides a way to determine group means for each variable and understand how different regions are separated based on their feature distributions. 
+
+```{r, echo = FALSE}
+(hdi.disc <- qda(data[, columns], grouping = data$Region))
+
+ctrawQ <- table(data$Region, predict(hdi.disc)$class)
+round(sum(diag(prop.table(ctrawQ))),2)
+```
+
+*The prediction accuracy of QDA is 0.84, which is higher than the prediction accuracy of linear discriminant analysis of 0.72. The improvement suggests that quadratic discriminant analysis is more appropriate as it does not assume equal covariance matrices across groups. As mentioned earlier, the Box's M test showed significant differences in covariance matrices so QDA is most likely capturing the true variance patterns more effectively than LDA. While the accuracy gain is marginally better (0.12), QDA having the higher prediction accuracy and its ability to handle differing covariance structures makes it the better choice.*
+
+#### Stepwise Discriminant Analysis 
+
+Stepwise Linear Discriminant Analysis
+
+```{r, echo = FALSE}
+library(klaR)  # Load klaR package for stepclass()
+
+stepwise_lda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + 
+                            GNI_Per_Capita_2021 + 
+                           Gender_Inequality_Index_2021 + 
+                            Male_Labour_Force_2021,
+                           data = data, method = "lda", direction = "both", 
+                          fold = nrow(data))
+
+stepwise_lda
+stepwise_lda$result.pm
+
+
+```
+
+*Using stepwise LDA, gender inequality and life expectancy were the key discriminators and the classification accuracy was 63.96%, still lower than QDA's accuracy of 84%. Because LDA assumes equal covariance matrices and Box's M test confirmed significant covariance differences, the assumptions of LDA may not hold, so LDA would not be a good choice.* 
+
+We will now use quadratic discriminant analysis. 
+
+```{r, echo = FALSE}
+library(klaR)  # Load klaR package for stepclass()
+
+stepwise_qda <- stepclass(Region ~ HDI_2021 + Life_Expectancy_2021 + 
+                            GNI_Per_Capita_2021 + 
+                           Gender_Inequality_Index_2021 + 
+                            Male_Labour_Force_2021,
+                           data = data, method = "qda", direction = "both", 
+                          fold = nrow(data))
+
+stepwise_qda
+
+data$Region <- as.factor(data$Region)
+partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021,
+         data = data, method = "qda", main = "QDA Partition Plot")
+
+
+```
+
+*Using stepwise QDA, we identified the key discriminators being Gender Inequality Index and Life Expectancy for classifying regions. However, the final classification accuracy of stepwise QDA is 63.06%, which is lower than the full QDA's model's accuracy of 84%, suggesting that while these two groups contribute significantly to group separation, removing the other predictors may resulted in information loss, leading to decreased classification performance. Additionally, the apparent error rate of QDA is lower than LDA, showing that QDA is better at separating classes. Since QDA does not assume equal covariance matrices, our data is not multivariate normal, and Box's M test confirmed covariance differences, QDA remains the best model choice over LDA.*
+
+### Wilk's Lambda Test
+
+```{r, echo = FALSE}
+data.manova <- manova(as.matrix(data[, columns]) ~ data$Region)
+summary.manova(data.manova, test = "Wilks")
+summary.aov(data.manova)
+```
+
+*A Wilks' lambda of approximately 0.14 is relatively small and is statistically significant given a p-value of 2.2e-16, which is less than our alpha of 0.05, and suggests that there is a statistically significant difference in the multivariate means between the regions. The strongest discriminators are Life Expectancy (p value 2.2e-16 and F-Statistic 34.7) and Gender Inequality Index (p value 2.2e-16 and F-Statistic 29.87), while Male Labor Force Participation is the weakest predictor. Since Wilks' Lamda is closer to 0, it indicates a strong group separation.*
+
+### Discriminant Functions Significance
+
+```{r, echo = FALSE}
+lda_scores <- predict(hdi_lda)$x 
+
+# MANOVA with all 5 discriminant functions
+lda_manova_5 <- manova(lda_scores ~ data$Region)
+summary(lda_manova_5, test = "Wilks")  
+
+# MANOVA with only the last 4 discriminant functions
+lda_manova_4 <- manova(lda_scores[, 2:5] ~ data$Region)
+summary(lda_manova_4, test = "Wilks") 
+
+# MANOVA with only the last 3 discriminant functions
+lda_manova_3 <- manova(lda_scores[, 3:5] ~ data$Region)
+summary(lda_manova_3, test = "Wilks")  
+
+hdi_lda
+```
+
+*Of our 5 discriminant functions, the first and second discriminant function are the only ones that were statistically significant, meaning they play a significant role in distinguishing between the groups. To determine this, we conducted a stepwise Wilks' Lamda test, progressively assessing the significance of all five discriminant functions. First, we tested the significance of all five discriminant functions, which yielded a Wilks' Lambda of 0.146 and a p-value of <2.2e-16, which showed significant separation between groups. Then we proceeded to test 4 of the discriminant functions (excluding the one with the most explanatory power), which was also statistically significant with a p-value of 2.16e-11, indicating that at least the first two discriminant functions were contributing meaningfully.*
+
+*However, when we further tested only the last three discriminant functions, the p-value was 0.8185, which is higher than our alpha of 0.05. This means we fail to reject the null hypothesis that at least one discriminant function is significant and all these three functions do not significantly improve group separation. As noted, it is evident that LD1 and LD2 are the primary drivers of group separation, whereas the last three functions add little explanatory power. This shows that reducing the model to just these two significant functions could simplify interpretation without compromising classification accuracy.*
+
+### Regular & Leave-One-Out Classification
+
+```{r, echo = FALSE}
+# regular QDA Classification
+ctrawQ <- table(data$Region, predict(hdi.disc)$class)
+ctrawQ
+round(sum(diag(prop.table(ctrawQ))),2)
+
+# Leave-One-Out Cross-Validation QDA Classification
+qda_cv_pred <- qda(data[, columns], grouping = data$Region, CV = TRUE)
+ctCVQ <- table(data$Region, qda_cv_pred$class)
+ctCVQ
+round(sum(diag(prop.table(ctCVQ))),2)
+```
+*The raw classification accuracy was 84%, while the cross-validation accuracy was 62%, indicating a decrease in predictive performance when tested on unseen data. The model performs well on the training data but struggles with generalization, which suggests overfitting, where the model captures noise rather than the true patterns in the data.*
+
+*When analyzing the confusion matrices, SSA had the highest classification accuracy, as most of its observations were correctly classified in both raw and cross-validated results (38 out of 41 in raw and 34 out of 41 in LOOCV). In contrast, regions such as AS, EAP, and LAC had a higher number of misclassifications. Additionally, EAP, LAC, and SA experienced significant accuracy losses, further supporting the overfitting hypothesis.*
+
+*Moreover, the 22% drop in accuracy from the raw method to cross-validation suggests that the latter may be too complex for this dataset, leading to overfitting.*
+
+### Standardized Discriminant Coefficients
+
+```{r, echo = FALSE}
+print("Raw (Unstandardized) Coefficients")
+round(hdi_lda$scaling,2)
+
+print("Normalized Coefficients")
+round(hdi_lda$scaling/sqrt(sum(hdi_lda$scaling^2)),2)
+
+print("Standardized Coefficients")
+hdi_lda_standardized <- lda(scale(data[, columns]), grouping = data$Region)
+print(round(hdi_lda_standardized$scaling, 2))
+```
+*Analyzing our standardized coefficients, HDI, Life expectancy, and Gender Inequality appear to be our stronger discriminators while GNI per Capita (GNIpc) and Male Labor Force have weaker contributions. This aligns with our univariate comparisons, where although GNIpc and Male Labor Force were statistically significant, their F-values were lower compared to the other three variables, indicating a weaker impact on group differentiation.*
+
+*When looking at the magnitude of the coefficients for our discriminant functions, life expectancy had the largest coefficient overall in LD1, as well as large coefficients in LD2 and LD3. HDI has relatively large coefficients in LD3 and LD5, and life expectancy has large coefficients and strong influence in LD2 and LD3. These results show that socioeconomic and human development indicators play a greater role in distinguishing regions than economic metrics such as GNI per Capita or labor force participation.*
+
+### Score Plots
+
+The LDA Score Plot reveals distinct separation patterns among the regions based on the first two discriminant functions (LD1 and LD2).
+
+```{r, echo = FALSE}
+lda_scores <- predict(hdi_lda)$x
+
+# Extract unique region names for plotting
+region_names <- unique(data$Region)
+
+# Generate the score plot for LD1 vs LD2
+plot(lda_scores[,1], lda_scores[,2], type = "n",
+     main = "LDA Score Plot for HDI Data",
+     xlab = "LDA Axis 1", ylab = "LDA Axis 2")
+
+# Loop through each region to plot points with different colors and symbols
+for (i in 1:length(region_names)) {
+  points(lda_scores[data$Region == region_names[i], 1], 
+         lda_scores[data$Region == region_names[i], 2], 
+         col = i + 1, pch = 15 + i, cex = 1.2)
+}
+
+# Add a legend to distinguish groups
+legend("topright", legend = region_names, 
+       col = c(2:(length(region_names) + 1)), 
+       pch = c(15:(15 + length(region_names))))
+```
+
+*Countries in Sub Saharan Africa (SSA) stands out significantly along LD1 (x-axis), suggesting that this region is well-differentiated from others. On the other hand, Europe and Central Asia (ECA) forms a distinct cluster in the bottom left corner, primarily separated along LD2 (y-axis), which indicates that the ECA is differentiated from other regions primarily due to variations in Life Expectancy and Gender Inequality Index.*
+
+*The other four regions-East Asia & Pacific (EAP), South Asia (SA), Americas (AS), and Latin America & Caribbean (LAC)-have considerable overlap. This suggests that these regions share similar features concerning LD1 and LD2, making it more difficult to distinguish them based on these two dimensions alone, meaning that variation exists and these regions may have similar economic, social, or demographic structures in relation to the predictor variables.*
+
+*Additionally, when looking at LD1, SSA appears to separate itself primarily based on HDI, Life Expectancy, and the Gender Inequality Index, while ECA differentiates itself along LD2, driven largely by Life Expectancy and Gender Inequality. Furthermore, there are outliers, such as in the Americas, where some observations deviate from the main cluster, suggesting that certain countries in this group show unique features that differ from the general trends of their respective regions.*
+
+### LDA Partition Plot
+
+```{r, echo = FALSE}
+library(klaR)
+data$Region <- as.factor(data$Region)
+    
+partimat(Region ~ Life_Expectancy_2021 + Gender_Inequality_Index_2021, 
+         data = data, method = "lda", main = "LDA Partition Plot")
+
+```
+
+*Looking at the partition plot, we can see more clearly how countries in SSA and ECA distinguish themselves, while the remaining regions overlap significantly, suggesting that they are less differentiated based on these two variables. This validates our conclusions from the previous analysis, as Gender Inequality and Life Expectancy were identified as significant contributors to both LD1 and LD2. SSA primarily occupies the lower right portion of the plot, whereas ECA is concentrated in the upper left. The substantial overlap among the other regions, particularly LAC, EAP, and AS, indicates that additional variables may be needed to improve classification accuracy between these groups.*
+
+### K-Nearest Neighbors
+
+K-Nearest Neighbors (KNN) classifies data points based on the majority class of their closest k neighbors, with k=5 in this case. 
+
+```{r, echo = FALSE}
+
+library(class)
+
+# Define training data
+train_X <- data[, c("HDI_2021", "Life_Expectancy_2021")]
+train_y <- as.factor(data$Region)
+
+# Generate a grid of points for decision boundary
+x_range <- seq(min(train_X[,1]), max(train_X[,1]), length.out = 100)
+y_range <- seq(min(train_X[,2]), max(train_X[,2]), length.out = 100)
+grid <- expand.grid(HDI_2021 = x_range, Life_Expectancy_2021 = y_range)
+
+# Perform KNN classification
+knn_pred <- knn(train = train_X, test = grid, cl = train_y, k = 5)
+
+# Convert predictions to a data frame for plotting
+grid$Region <- knn_pred
+
+# Create decision boundary plot
+ggplot(data, aes(x = HDI_2021, y = Life_Expectancy_2021, color = Region)) +
+  geom_point() +
+  geom_tile(data = grid, aes(fill = Region), alpha = 0.3) +
+  theme_minimal() +
+  labs(title = "KNN Classification (k = 5)", x = "HDI_2021", y = "Life Expectancy")
+
+
+```
+
+*In the plot, the color of each dot corresponds to the actual classification of the region, while the background grid represents the predicted classification for different areas of the feature space. Based on the plot, SSA is clearly concentrated in the lower left corner of the plot, indicating that countries with lower Human Development Index (HDI) and life expectancy are predominantly classified as SSA. This aligns with our prior analyses showing that SSA tends to have lower values for these indicators compared to other regions.*
+
+*For other regions, there is considerable overlap, particularly among East Asia & Pacific (EAP), Europe & Central Asian (ECA), Latin America & the Caribbean (LAC), and South Asia (SA), suggesting that HDI and Life Expectancy alone may not be sufficient enough to classify these groups. The decision bands are horizontal, suggesting that life expectancy plays a more pivotal role in classification relative to HDI when determining the region assignment.*
+
+
+**Conclusion**
+
+Based on our analysis, we uncovered some interesting findings relating to some of the underlying trends/patterns in our dataset based on the economic, social and environmental benchmarks of different countries. Through PCA, we settled on using two principle components to explain a significant portion of the variability in our data (roughly 78%): the first component was a general measure of overall well-being and development while the second component was a measurement of a country's gender inequality. In addition, we visualized our data, using these two components, and identified two outliers (based on a 95% confidence interval ellipse) to be Yemen and Madagascar. Next, we used discriminant analysis to unpack whether there existed natural clusters underlying our data. From using K-means clustering to Ward's method (with Euclidean distance), we identified 4 distinct clusters: the leftmost cluster distinguished itself as the group of countries with overall low HDI indicators while the rightmost cluster was composed of more developed countries with contradistinction high metrics of well-being. The other two clusters were more nuanced, but further analysis showed that one of these clusters appeared to be made up of countries that were transitioning to be more developed (such as China) while the other cluster was made of countries that were less developed and more varied along the second axis, indicating greater levels of inequality. For our final method, we were interested in determining whether a pre-defined grouping - namely, the geographic region - was an adequate discriminator based on developmental metrics. Using discriminant analysis, we found that Sub-Saharan Africa and Europe & Central Asia were well-differentiated from the other groups based on indicators relating to the general development of a country (life expectancy, GNIpc) and the overall inequality, while the other four regions were more clustered in the center suggesting they shared more commonality among those indicators which made it more difficult to distinguish based on those two discriminators alone. 
+
+Overall, we were successful in tackling the aim of our project to uncover patterns in development, inequality, and regional trends across countries through the use of multivariate analysis. We recognize that there are limitations and further extensions that can be done in future analysis. For instance, our methods captured major trends and patterns based on holistic measures of a country's development, more country specific factors were not captured by our models and neither were more qualitative metrics that could have had significant impacts. In future iterations of this project, we could not only incorporate further data - other metrics such as more environmental risk indicators or policy intervention / regulatory measures - but also incorporate time dynamics to visualize changes over time. Nonetheless, our project allowed us to uncover the complex interplay between economic and social factors that shape development outcomes.
