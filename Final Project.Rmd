@@ -389,7 +389,7 @@ Overall, PCA successfully reduced the dataset to two interpretable components, c
 
 ***Cluster Analysis***
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning=FALSE}
 library(aplpack)
 library(fpc)
 library(cluster)
@@ -410,16 +410,17 @@ wbnorm <- data[, c("HDI_2021", "Life_Expectancy_2021",
                    "CO2_Emissions_percapita_2021")]
 rownames(wbnorm) <- data[, 1]
 wbnorm <- scale(na.omit(wbnorm))
+print("dimensions of the standardized data set")
 dim(wbnorm)
 
 ```
 
-*We chose Euclidean distance as the most appropriate metric because our data is continuous and standardized, making it suitable for measuring straight-line distances between countries based on various HDI indicators.*
+We chose Euclidean distance as the most appropriate metric for our cluster analysis because our dataset consists of continuous, standardized variables. Euclidean distance is ideal for measuring straight-line similarity in multivariate numeric data, and standardization ensures that all variables contribute equally to the distance calculations.
 
-*Other methods of distance do not fit the context of our data. For instance, our data is not binary so we would not use Jaccard Distance and we are not looking at absolute differences so Manhattan Distance would not be satisfactory. *
+Other distance metrics were considered but found unsuitable for this context. For example, the Jaccard distance is designed for binary or presence-absence data, which does not apply here, and Manhattan distance, which measures absolute differences, is less effective when variables are on different scales or when squared differences (as in Euclidean) better capture dissimilarity.
 
-*To ensure Euclidean distance performs accurately, we standardized our data and made minor preprocessing adjustments, such as setting country names as row labels. Moreover, we applied log transformations to variables with significant skewness to improve the overall distribution and clustering performance.*
- 
+To support the use of Euclidean distance, we applied preprocessing steps such as standardizing all variables, log-transforming skewed indicators, and assigning country names as row labels for interpretability. These steps support the reliability of clustering results by ensuring comparability and minimizing the influence of outliers or variable scale.
+
 ### Hierarchical Cluster Analysis - Euclidean and Manhattan
 
 ```{r, echo = FALSE}
@@ -445,11 +446,11 @@ plot(clust3, labels = rownames(wbnorm), cex = 0.3, xlab = "",
 rect.hclust(clust3, k = 2)
 ```
 
-*The first dendrogram uses Euclidean distance with complete agglomeration (also known as the farthest-neighbor method), which merges clusters based on the maximum distance between observations. This approach produced roughly three clusters, with Yemen standing out as a clear outlier forming its own cluster, while the remaining countries split into two relatively compact groups.*
+The first dendrogram uses Euclidean distance with complete linkage (also known as the farthest-neighbor method), which merges clusters based on the maximum distance between any pair of points. This approach produced approximately three main clusters. Notably, Yemen emerged as a clear outlier, forming its own distinct cluster, while the remaining countries were divided into two relatively compact groups.
 
-*In contrast, the dendrogram using Manhattan distance with Ward’s method—which minimizes the total within-cluster variance—resulted in about five distinct, tightly grouped clusters with lower internal variability.*
+In contrast, the second dendrogram applies Manhattan distance with Ward’s method, which seeks to minimize the total within-cluster variance at each step. This resulted in five well-defined clusters with more homogeneous groupings. Compared to complete linkage, Ward’s method produced clusters with greater internal consistency and smaller within-group differences.
 
-*Lastly, the third method applies Euclidean distance with single linkage (nearest-neighbor), where clusters are formed based on the smallest distance between points. This approach yielded a very different structure: Yemen again appears as a singular outlier, while all other countries are grouped into one large, less structured cluster.*
+The third dendrogram uses maximum distance with single linkage, which merges clusters based on the smallest distance between any two points (nearest-neighbor). This method yielded a much less structured result: Yemen again appeared as a distinct outlier, while most countries were merged into a single large, elongated cluster. This reflects a known limitation of single linkage; it is prone to "chaining," where clusters grow by progressively adding the closest individual points, leading to less meaningful groupings.
 
 ### Number of Groups
 
@@ -459,8 +460,10 @@ source("https://raw.githubusercontent.com/jreuning/sds363_code/refs/heads/main/H
 hclus_eval(wbnorm, dist_m = 'euclidean', clus_m = 'complete', plot_op = T, 
            print_num = 15)
 ```
+To determine the optimal number of clusters, we examined many metrics. The red line in the first plot represents the proportion of variance explained (RSQ), which increases sharply up to the fourth cluster, after which improvements taper off, indicating diminishing returns in explanatory power. The green line (semi-partial R-squared, SPRSQ) exhibits a clear elbow at the third cluster, suggesting a significant gain in cohesion when transitioning from two to three clusters, but smaller gains thereafter. The blue line (RMSSTD) begins to flatten after the fourth or fifth cluster, implying that additional clusters yield minimal improvements in within-group homogeneity.
 
-*To determine the optimal number of clusters, we looked at many metrics. The total sum of squares (RSQ), represented by the red line, demonstrates diminishing returns after the fourth cluster, suggesting limited additional explanatory power beyond that point. The semi-partial R-squared (green line) shows a clear elbow at the third index, indicating a potential grouping into three clusters. The Root Mean Square Standard Deviation (RMSSTD) curve flattens between the fourth and fifth index, pointing toward reduced improvement in within-cluster homogeneity beyond that range. Additionally, the cluster distance plot shows a noticeable elbow around the fourth, and possibly sixth, index. Taking all these indicators into account, four clusters appear to be the most appropriate number to retain.*
+The second plot, displaying cluster distances (CD), also reveals a visible elbow at around four clusters, with a less pronounced inflection near the sixth. Taking all these indicators into account, these patterns suggest that the most appropriate number of clusters is four, balancing between model simplicity and explanatory effectiveness.
+
 
 ### K-Means Clustering
 
@@ -603,13 +606,13 @@ plotcluster(kdata, fit$cluster, main="Four Cluster Solution in DA Space",
 # end of script
 ```
 
-*After performing K-means clustering, we generated a plot of the total sum of squares versus the number of clusters (k). The elbow in the curve appears around the fourth cluster, suggesting that four is an appropriate number of groups to retain. *
+After performing K-means clustering, we generated a plot of the total sum of squares versus the number of clusters (k). The elbow in the curve appears around the fourth cluster, suggesting that four is an appropriate number of groups to retain.
 
-*Additionally, we included a plot of the sum of squared errors (SSE) for random permutations of the data (in red), which also shows a subtle kink around the fourth cluster. A plot of the log-transformed SSE similarly points to a maximum around the fourth index. *
+Additionally, we included a plot of the sum of squared errors (SSE) for random permutations of the data (in red), which also shows a subtle kink around the fourth cluster. A plot of the log-transformed SSE similarly points to a maximum around the fourth index
 
-*Taken together, these plots indicate that four clusters best capture the underlying structure of the data, which aligns with our findings from hierarchical clustering, further strengthening the presence of four naturally distinct groupings within the dataset. *
+Taken together, these plots indicate that four clusters best capture the underlying structure of the data, which aligns with our findings from hierarchical clustering, further strengthening the presence of four naturally distinct groupings within the dataset.
 
-*To visualize these groupings, we plotted the K-means clusters in principal component space (using the first and second components), as well as in discriminant analysis space, both of which show clear separation among the identified clusters.*
+To visualize these groupings, we plotted the K-means clusters in principal component space (using the first and second components), as well as in discriminant analysis space, both of which show clear separation among the identified clusters.
 
 ### Plots in DA and PCA Space
 
@@ -623,9 +626,10 @@ plotcluster(wbnorm, cuts, main = "Five Cluster Solution in DA Space",
             xlab = "First Discriminant Function", 
             ylab = "Second Discriminant Function", cex = .8)
 ```
-*The cluster plots in both discriminant analysis (DA) space and principal component analysis (PCA) space—based on Euclidean distance and Ward’s method—show a clear separation among the groups. Similar with our K-means results, both visualizations suggest the presence of four distinct clusters. These plots' confirmation supports our earlier selection that four is the optimal number of groups to retain.*
+The cluster plots in both discriminant analysis (DA) space and principal component analysis (PCA) space, based on Euclidean distance and Ward’s method, show a clear separation among five distinct groups. While our earlier metrics (such as SSE and RSQ) suggested four clusters as optimal, these visualizations provide additional justification for considering a fifth cluster, as it separates a subgroup more clearly than in previous methods. Together, these plots offer strong visual support for the underlying structure revealed through hierarchical clustering.
 
-```{r, echo = FALSE}
+
+```{r, echo = FALSE, result="hide"}
 for (i in 1:4){
   print(paste("Countries in Cluster ", i))
   print(rownames(wbnorm)[cuts == i])
@@ -637,9 +641,40 @@ pca$rotation  # This shows the loadings
 
 ```
 
-*Cluster 1 (e.g., Uganda, Nigeria, Sudan) consists of countries with low Human Development Index (HDI) indicators. These countries are positioned on the far left of the first principal component, which appears to represent a general measure of overall HDI performance. In contrast, Cluster 3 (e.g., Denmark, Finland, Japan) includes highly developed countries with strong HDI metrics, scoring highest along the same component. The remaining two clusters are less clear. Cluster 2, which includes countries like China, seems to represent nations in transition—those currently progressing toward developed status—positioned between the low and high extremes along the first principal component. Cluster 3 appears to contain less developed countries that vary more along the second principal component, which seems to show gender-related development factors, given the strong loadings of variables like male/female labor force participation and the Gender Development Index. *
+#### **Cluster Memberships
 
-*Overall, the clustering results fit the context of our dataset, effectively grouping countries by their development stage—from low HDI to highly developed, with transitional and intermediate categories in between.*
+**Cluster 1**: Angola, Burundi, Benin, Burkina Faso, Central African Republic, Ivory Coast, Cameroon, The Democratic Republic of the Congo, Congo, Ethiopia, Ghana, Guinea, Gambia, Guinea-Bissau, Haiti, Kenya, Cambodia, Lao, Liberia, Lesotho, Madagascar, Mali, Mozambique, Mauritania, Malawi, Namibia, Niger, Nigeria, Nepal, Papua New Guinea, Rwanda, Sudan, Senegal, Sierra Leone, South Sudan, Eswatini, Chad, Togo, Tanzania, Uganda, Yemen, Zambia, Zimbabwe
+
+**Cluster 2**: Albania, Argentina, Armenia, Azerbaijan, Bulgaria, Barbados, Chile, China, Costa Rica, Georgia, Croatia, Hungary, Kazakhstan, North Macedonia, Montenegro, Mongolia, Mauritius, Panama, Romania, Russian Federation, Serbia, Slovakia, Thailand, Ukraine, Uruguay
+
+**Cluster 3**: Australia, Austria, Belgium, Belarus, Canada, Switzerland, Cyprus, Czechia, Germany, Denmark, Spain, Estonia, Finland, France, United Kingdom, Greece, Ireland, Iceland, Israel, Italy, Japan, South Korea, Lithuania, Luxembourg, Latvia, Malta, Netherlands, Norway, New Zealand, Poland, Portugal, Singapore, Slovenia, Sweden, United States
+
+**Cluster 4**: Bangladesh, Bosnia and Herzegovina, Belize, Bolivia, Brazil, Bhutan, Colombia, Dominican Republic, Algeria, Ecuador, Egypt, Gabon, Guatemala, Guyana, Honduras, Indonesia, India, Iran, Iraq, Jamaica, Jordan, Kyrgyzstan, Saint Lucia, Sri Lanka, Morocco, Moldova, Maldives, Mexico, Nicaragua, Oman, Pakistan, Peru, Philippines, Paraguay, El Salvador, Sao Tome and Principe, Suriname, Tajikistan, Turkmenistan, Timor-Leste, Tonga, Tunisia, Turkey, Venezuela, Viet Nam, Samoa, South Africa
+
+
+#### **PCA Loadings Table**
+
+| Variable                        | PC1   | PC2   | PC3   | PC4   | PC5   | PC6   | PC7   | PC8   | PC9   | PC10  | PC11  |
+|-------------------------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| HDI_2021                      | 0.361 | -0.024| 0.050 | -0.085| 0.060 | -0.045| 0.328 | 0.106 | -0.142| 0.036 | -0.845|
+| Life_Expectancy_2021         | 0.335 | -0.009| 0.254 | 0.062 | -0.504| -0.015| 0.551 | -0.151| 0.401 | -0.146| 0.239 |
+| Mean_Years_Schooling_2021    | 0.337 | -0.017| -0.099| -0.147| 0.476 | -0.616| 0.068 | 0.345 | 0.236 | -0.094| 0.246 |
+| GNI_Per_Capita_2021          | 0.352 | -0.008| 0.045 | -0.131| 0.137 | 0.290 | 0.296 | 0.097 | -0.689| 0.123 | 0.408 |
+| Gender_Dev_Index_2021        | 0.217 | -0.396| -0.622| -0.359| -0.461| 0.009 | -0.188| 0.132 | 0.024 | 0.119 | 0.015 |
+| Gender_Inequality_Index_2021| -0.347| 0.128 | -0.014| -0.246| 0.065 | 0.108 | 0.365 | 0.259 | 0.266 | 0.718 | 0.031 |
+| Maternal_Mortality_Rate_2021| -0.349| -0.024| -0.098| -0.150| 0.010 | 0.311 | 0.257 | 0.554 | 0.045 | -0.611| -0.019|
+| Adolescent_Birth_Rate_2021  | -0.326| -0.033| -0.228| -0.447| 0.145 | -0.246| 0.363 | -0.608| -0.138| -0.198| -0.004|
+| Female_Labour_Force_2021    | -0.050| -0.722| -0.152| 0.456 | 0.345 | 0.183 | 0.236 | -0.118| 0.138 | 0.070 | 0.015 |
+| Male_Labour_Force_2021      | -0.121| -0.544| 0.670 | -0.422| -0.066| -0.113| -0.187| 0.081 | -0.060| 0.018 | -0.005|
+| CO2_Emissions_percapita_2021| 0.329 | 0.089 | 0.030 | -0.390| 0.369 | 0.565 | -0.201| -0.236| 0.417 | -0.075| -0.006|
+
+___
+
+Cluster 1 (e.g. Uganda, Nigeria, Sudan) consists of countries with low Human Development Index (HDI) indicators. These countries are positioned on the far left of the first principal component, which appears to represent a general measure of overall HDI performance. In contrast, Cluster 3 (e.g., Denmark, Finland, Japan) includes highly developed countries with strong HDI metrics, scoring highest along the same component. The remaining two clusters are less clear. Cluster 2, which includes countries like China, seems to represent nations in transition—those currently progressing toward developed status—positioned between the low and high extremes along the first principal component. Cluster 4 appears to contain less developed countries that vary more along the second principal component, which seems to capture gender-related development factors, given the strong loadings of variables like male/female labor force participation and the Gender Development Index.
+
+Overall, the clustering results fit the context of our dataset, effectively grouping countries by their development stage, from low HDI to highly developed, with transitional and intermediate categories in between.
+
+Building on the insights from our cluster analysis, we now apply discriminant analysis to formally assess how well countries can be classified into the identified clusters based on key development indicators.
 
 ***Discriminant Analysis***
 
@@ -696,9 +731,9 @@ cqplot(data[data$Region == "SSA", columns], main = "Sub-Saharan Africa (SSA)")
 par(mfrow = c(1,1))
 
 ```
-*Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data roughly follows a linear trend, indicating the assumption of multivariate normality holds across all groups. Most observed Mahalanobis distances align well with the theoretical quantities and remain within the confidence bounds.*
+Based on the chi-square quantile plots for each region (AS, EAP, ECA, LAC, SA, and SSA), the data roughly follows a linear trend, indicating the assumption of multivariate normality holds across all groups. Most observed Mahalanobis distances align well with the theoretical quantities and remain within the confidence bounds.
 
-*However, there does appear to be more deviations from normality at upper quartiles, such as in LAC and ECA, while some points slightly exceed the theoretical line. While these deviations suggest the presence of outliers or skewedness, they are still within the acceptable limits, so the normality assumption is not strongly violated.*
+However, there does appear to be more deviations from normality at upper quartiles, such as in LAC and ECA, while some points slightly exceed the theoretical line. While these deviations suggest the presence of outliers or skewedness, they are still within the acceptable limits, so the normality assumption is not strongly violated.
 
 #### Covariances Matrices - Box's M and Matrices
 
